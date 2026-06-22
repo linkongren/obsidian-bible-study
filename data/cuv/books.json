@@ -1,0 +1,332 @@
+[
+  {
+    "id": "gen",
+    "name": "创世记",
+    "chapters": 50
+  },
+  {
+    "id": "exo",
+    "name": "出埃及记",
+    "chapters": 40
+  },
+  {
+    "id": "lev",
+    "name": "利未记",
+    "chapters": 27
+  },
+  {
+    "id": "num",
+    "name": "民数记",
+    "chapters": 36
+  },
+  {
+    "id": "deu",
+    "name": "申命记",
+    "chapters": 34
+  },
+  {
+    "id": "jos",
+    "name": "约书亚记",
+    "chapters": 24
+  },
+  {
+    "id": "jdg",
+    "name": "士师记",
+    "chapters": 21
+  },
+  {
+    "id": "rut",
+    "name": "路得记",
+    "chapters": 4
+  },
+  {
+    "id": "1sa",
+    "name": "撒母耳记上",
+    "chapters": 31
+  },
+  {
+    "id": "2sa",
+    "name": "撒母耳记下",
+    "chapters": 24
+  },
+  {
+    "id": "1ki",
+    "name": "列王纪上",
+    "chapters": 22
+  },
+  {
+    "id": "2ki",
+    "name": "列王纪下",
+    "chapters": 25
+  },
+  {
+    "id": "1ch",
+    "name": "历代志上",
+    "chapters": 29
+  },
+  {
+    "id": "2ch",
+    "name": "历代志下",
+    "chapters": 36
+  },
+  {
+    "id": "ezr",
+    "name": "以斯拉记",
+    "chapters": 10
+  },
+  {
+    "id": "neh",
+    "name": "尼希米记",
+    "chapters": 13
+  },
+  {
+    "id": "est",
+    "name": "以斯帖记",
+    "chapters": 10
+  },
+  {
+    "id": "job",
+    "name": "约伯记",
+    "chapters": 42
+  },
+  {
+    "id": "psa",
+    "name": "诗篇",
+    "chapters": 150
+  },
+  {
+    "id": "pro",
+    "name": "箴言",
+    "chapters": 31
+  },
+  {
+    "id": "ecc",
+    "name": "传道书",
+    "chapters": 12
+  },
+  {
+    "id": "sng",
+    "name": "雅歌",
+    "chapters": 8
+  },
+  {
+    "id": "isa",
+    "name": "以赛亚书",
+    "chapters": 66
+  },
+  {
+    "id": "jer",
+    "name": "耶利米书",
+    "chapters": 52
+  },
+  {
+    "id": "lam",
+    "name": "耶利米哀歌",
+    "chapters": 5
+  },
+  {
+    "id": "ezk",
+    "name": "以西结书",
+    "chapters": 48
+  },
+  {
+    "id": "dan",
+    "name": "但以理书",
+    "chapters": 12
+  },
+  {
+    "id": "hos",
+    "name": "何西阿书",
+    "chapters": 14
+  },
+  {
+    "id": "jol",
+    "name": "约珥书",
+    "chapters": 3
+  },
+  {
+    "id": "amo",
+    "name": "阿摩司书",
+    "chapters": 9
+  },
+  {
+    "id": "oba",
+    "name": "俄巴底亚书",
+    "chapters": 1
+  },
+  {
+    "id": "jon",
+    "name": "约拿书",
+    "chapters": 4
+  },
+  {
+    "id": "mic",
+    "name": "弥迦书",
+    "chapters": 7
+  },
+  {
+    "id": "nam",
+    "name": "那鸿书",
+    "chapters": 3
+  },
+  {
+    "id": "hab",
+    "name": "哈巴谷书",
+    "chapters": 3
+  },
+  {
+    "id": "zep",
+    "name": "西番雅书",
+    "chapters": 3
+  },
+  {
+    "id": "hag",
+    "name": "哈该书",
+    "chapters": 2
+  },
+  {
+    "id": "zec",
+    "name": "撒迦利亚书",
+    "chapters": 14
+  },
+  {
+    "id": "mal",
+    "name": "玛拉基书",
+    "chapters": 4
+  },
+  {
+    "id": "mat",
+    "name": "马太福音",
+    "chapters": 28
+  },
+  {
+    "id": "mrk",
+    "name": "马可福音",
+    "chapters": 16
+  },
+  {
+    "id": "luk",
+    "name": "路加福音",
+    "chapters": 24
+  },
+  {
+    "id": "jhn",
+    "name": "约翰福音",
+    "chapters": 21
+  },
+  {
+    "id": "act",
+    "name": "使徒行传",
+    "chapters": 28
+  },
+  {
+    "id": "rom",
+    "name": "罗马书",
+    "chapters": 16
+  },
+  {
+    "id": "1co",
+    "name": "哥林多前书",
+    "chapters": 16
+  },
+  {
+    "id": "2co",
+    "name": "哥林多后书",
+    "chapters": 13
+  },
+  {
+    "id": "gal",
+    "name": "加拉太书",
+    "chapters": 6
+  },
+  {
+    "id": "eph",
+    "name": "以弗所书",
+    "chapters": 6
+  },
+  {
+    "id": "php",
+    "name": "腓立比书",
+    "chapters": 4
+  },
+  {
+    "id": "col",
+    "name": "歌罗西书",
+    "chapters": 4
+  },
+  {
+    "id": "1th",
+    "name": "帖撒罗尼迦前书",
+    "chapters": 5
+  },
+  {
+    "id": "2th",
+    "name": "帖撒罗尼迦后书",
+    "chapters": 3
+  },
+  {
+    "id": "1ti",
+    "name": "提摩太前书",
+    "chapters": 6
+  },
+  {
+    "id": "2ti",
+    "name": "提摩太后书",
+    "chapters": 4
+  },
+  {
+    "id": "tit",
+    "name": "提多书",
+    "chapters": 3
+  },
+  {
+    "id": "phm",
+    "name": "腓利门书",
+    "chapters": 1
+  },
+  {
+    "id": "heb",
+    "name": "希伯来书",
+    "chapters": 13
+  },
+  {
+    "id": "jas",
+    "name": "雅各书",
+    "chapters": 5
+  },
+  {
+    "id": "1pe",
+    "name": "彼得前书",
+    "chapters": 5
+  },
+  {
+    "id": "2pe",
+    "name": "彼得后书",
+    "chapters": 3
+  },
+  {
+    "id": "1jn",
+    "name": "约翰一书",
+    "chapters": 5
+  },
+  {
+    "id": "2jn",
+    "name": "约翰二书",
+    "chapters": 1
+  },
+  {
+    "id": "3jn",
+    "name": "约翰三书",
+    "chapters": 1
+  },
+  {
+    "id": "jud",
+    "name": "犹大书",
+    "chapters": 1
+  },
+  {
+    "id": "rev",
+    "name": "启示录",
+    "chapters": 22
+  }
+]
