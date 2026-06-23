@@ -77,6 +77,18 @@ export default class BibleStudyPlugin extends Plugin {
       },
     });
 
+    // 注册命令：关闭圣经阅读面板
+    this.addCommand({
+      id: "close-bible-reading-panel",
+      name: "关闭圣经阅读面板",
+      callback: () => {
+        const leaves = this.app.workspace.getLeavesOfType(BIBLE_VIEW_TYPE);
+        for (const leaf of leaves) {
+          leaf.detach();
+        }
+      },
+    });
+
     // 注册命令：查找当前选中的经文
     this.addCommand({
       id: "lookup-selected-reference",

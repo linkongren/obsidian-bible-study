@@ -74,6 +74,12 @@ export class BibleReadingView extends ItemView {
 
     const header = container.createEl("div", { cls: "bible-reading-header" });
 
+    const closeBtn = header.createEl("button", { text: "✕", cls: "bible-reading-close" });
+    closeBtn.setAttribute("aria-label", "关闭面板");
+    closeBtn.addEventListener("click", () => {
+      this.leaf.detach();
+    });
+
     const bookSelect = header.createEl("select", { cls: "bible-book-select" });
 
     const oldGroup = doc.createElement("optgroup");

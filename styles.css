@@ -68,11 +68,30 @@
 }
 
 /* ---- Bible Reading Panel ---- */
+.bible-reading-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.bible-reading-close:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
 .bible-reading-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
   padding: 8px;
+  position: relative;
 }
 
 .bible-reading-header {
