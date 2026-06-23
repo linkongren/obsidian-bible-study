@@ -100,7 +100,8 @@ export default class BibleStudyPlugin extends Plugin {
    * 加载插件设置
    */
   async loadSettings() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const data = await this.loadData() as Partial<BibleStudySettings> | undefined;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
   }
 
   /**

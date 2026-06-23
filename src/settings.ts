@@ -15,9 +15,10 @@ export class BibleStudySettingTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
+    const doc = containerEl.ownerDocument;
     containerEl.empty();
 
-    new Setting(containerEl).setName("Bible Study 设置").setHeading();
+    new Setting(containerEl).setName("设置").setHeading();
 
     // === 经文版本 ===
     new Setting(containerEl).setName("圣经版本").setHeading();
@@ -74,7 +75,7 @@ export class BibleStudySettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.fontSize = value;
             await this.plugin.saveSettings();
-            document.documentElement.style.setProperty("--bible-font-size", `${value}px`);
+            doc.documentElement.style.setProperty("--bible-font-size", `${value}px`);
           });
       });
 

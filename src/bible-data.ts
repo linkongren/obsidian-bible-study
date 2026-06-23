@@ -16,7 +16,10 @@ export function setPluginDir(dir: string) {
 }
 
 function getPluginDir(): string {
-  return _pluginDir || ".obsidian/plugins/bible-study/";
+  if (!_pluginDir) {
+    throw new Error("Bible Study: plugin dir not initialized. Call setPluginDir() first.");
+  }
+  return _pluginDir;
 }
 
 /**

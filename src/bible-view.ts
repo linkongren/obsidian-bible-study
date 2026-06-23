@@ -181,18 +181,20 @@ export class BibleReadingView extends ItemView {
     nextBtn.addEventListener("click", () => goToChapter(1));
 
     // 键盘导航
-    container.addEventListener("keydown", async (e: KeyboardEvent) => {
+    container.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") {
         if (this.currentChapter > 1) {
           this.currentChapter--;
-          await this.loadCurrentChapter();
-          this.renderContent(container);
+          void this.loadCurrentChapter().then(() => {
+            this.renderContent(container);
+          });
         }
       } else if (e.key === "ArrowRight") {
         if (this.currentChapter < this.currentBook.chapters) {
           this.currentChapter++;
-          await this.loadCurrentChapter();
-          this.renderContent(container);
+          void this.loadCurrentChapter().then(() => {
+            this.renderContent(container);
+          });
         }
       }
     });
