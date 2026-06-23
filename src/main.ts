@@ -151,11 +151,10 @@ export default class BibleStudyPlugin extends Plugin {
           active: true,
         });
         leaf = rightLeaf;
-        void workspace.revealLeaf(rightLeaf);
       }
     } else {
-      // 已有面板，显示它
-      void workspace.revealLeaf(leaf);
+      // 已有面板，聚焦它
+      workspace.setActiveLeaf(leaf, { focus: true });
     }
   }
 
