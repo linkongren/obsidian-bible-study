@@ -1,19 +1,9 @@
-/**
- * 内联引用展开
- * 在编辑器中输入 -约3:16 然后按 Tab，直接将引用替换为经文
- */
-
 import { Editor, Notice } from "obsidian";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { parseReference } from "./reference-modal";
 import { loadBook, getVerses, formatVersePlain } from "./bible-data";
 import { BibleStudySettings } from "./types";
-
-interface VaultAdapter {
-  read: (path: string) => Promise<string>;
-  exists: (path: string) => Promise<boolean>;
-}
 
 const REF_PATTERN = /(?:^|[\s([{（【『「])([-])([一-鿿a-zA-Z]+)\s*(\d+)[：:](\d+)(?:[-–—](\d+))?$/;
 
@@ -35,18 +25,17 @@ export function findRefBeforeCursor(editor: Editor): { ref: string; from: number
   };
 }
 
-export async function doExpand(
+export function doExpand(
   editor: Editor,
-  settings: BibleStudySettings,
-  adapter: VaultAdapter
-): Promise<boolean> {
+  settings: BibleStudySettings
+): boolean {
   const found = findRefBeforeCursor(editor);
   if (!found) return false;
 
   const ref = parseReference(found.ref);
   if (!ref) return false;
 
-  const bookData = await loadBook(settings.defaultVersion, ref.bookId, adapter);
+  const bookData = loadBook(settings.defaultVersion, ref.bookId);
   if (!bookData) return false;
 
   const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
@@ -62,8 +51,7 @@ export async function doExpand(
 }
 
 export function createTabExpandExtension(
-  settings: BibleStudySettings,
-  adapter: VaultAdapter
+  settings: BibleStudySettings
 ) {
   return Prec.highest(
     keymap.of([{
@@ -87,27 +75,26 @@ export function createTabExpandExtension(
 
         const from = line.from + match.index!;
 
-        void loadBook(settings.defaultVersion, ref.bookId, adapter).then((bookData) => {
-          if (!bookData) {
-            new Notice(`未找到「${ref.bookName}」的经文数据`);
-            return;
-          }
-          const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
-          if (verses.length === 0) {
-            new Notice(`未找到经文 ${ref.bookName} ${ref.chapter}:${ref.startVerse}`);
-            return;
-          }
+        const bookData = loadBook(settings.defaultVersion, ref.bookId);
+        if (!bookData) {
+          new Notice(`未找到「${ref.bookName}」的经文数据`);
+          return true;
+        }
+        const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
+        if (verses.length === 0) {
+          new Notice(`未找到经文 ${ref.bookName} ${ref.chapter}:${ref.startVerse}`);
+          return true;
+        }
 
-          const formatted = formatVersePlain(ref.bookName, ref.chapter, verses);
+        const formatted = formatVersePlain(ref.bookName, ref.chapter, verses);
 
-          view.dispatch({
-            changes: { from, to: pos, insert: formatted },
-          });
-
-          new Notice(
-            `${ref.bookName} ${ref.chapter}:${ref.startVerse}${ref.endVerse ? `-${ref.endVerse}` : ''}`
-          );
+        view.dispatch({
+          changes: { from, to: pos, insert: formatted },
         });
+
+        new Notice(
+          `${ref.bookName} ${ref.chapter}:${ref.startVerse}${ref.endVerse ? `-${ref.endVerse}` : ''}`
+        );
 
         return true;
       },

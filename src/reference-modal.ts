@@ -1,18 +1,7 @@
-/**
- * 经文引用插入弹窗
- * 用户输入经文出处（如 "约翰福音3:16"），预览并插入经文
- */
-
 import { App, Modal, Notice } from "obsidian";
-import { BibleReference } from "./types";
+import { BibleReference, BibleStudySettings } from "./types";
 import { findBook } from "./book-names";
 import { loadBook, getVerses, formatVersePlain } from "./bible-data";
-import { BibleStudySettings } from "./types";
-
-interface VaultAdapter {
-  read: (path: string) => Promise<string>;
-  exists: (path: string) => Promise<boolean>;
-}
 
 export function parseReference(input: string): BibleReference | null {
   const trimmed = input.trim();
@@ -62,7 +51,6 @@ export function parseReference(input: string): BibleReference | null {
 
 export class ReferenceModal extends Modal {
   settings: BibleStudySettings;
-  result: string | null = null;
 
   constructor(app: App, settings: BibleStudySettings) {
     super(app);
@@ -123,64 +111,45 @@ export class ReferenceModal extends Modal {
         return;
       }
 
-      const adapter = this.app.vault.adapter as VaultAdapter;
+      const bookData = loadBook(this.settings.defaultVersion, ref.bookId);
 
-      void loadBook(
-        this.settings.defaultVersion,
-        ref.bookId,
-        adapter
-      ).then((bookData) => {
-        if (!bookData) {
-          previewEl.empty();
-          previewEl.createEl("div", {
-            text: `⚠️ 未找到「${ref.bookName}」的经文数据，请先下载圣经数据`,
-            cls: "hint-text",
-          });
-          insertBtn.disabled = true;
-          return;
-        }
-
-        const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
-
-        if (verses.length === 0) {
-          previewEl.empty();
-          previewEl.createEl("div", {
-            text: `⚠️ 未找到 ${ref.bookName} ${ref.chapter}:${ref.startVerse} 的经文`,
-            cls: "hint-text",
-          });
-          insertBtn.disabled = true;
-          return;
-        }
-
-        previewEl.empty();
-        const verseLabel = ref.endVerse
-          ? `${ref.bookName} ${ref.chapter}:${ref.startVerse}-${ref.endVerse}`
-          : `${ref.bookName} ${ref.chapter}:${ref.startVerse}`;
-
+      if (!bookData) {
         previewEl.createEl("div", {
-          text: verseLabel,
-          cls: "hint-text",
-          attr: { style: "font-weight: 700; margin-bottom: 6px;" },
-        });
-
-        for (const v of verses) {
-          const verseRow = previewEl.createEl("div", { cls: "preview-verse" });
-          verseRow.createEl("span", {
-            text: `${v.verse}`,
-            cls: "preview-verse-num",
-          });
-          verseRow.createEl("span", { text: v.text });
-        }
-
-        insertBtn.disabled = false;
-      }).catch((e: unknown) => {
-        previewEl.empty();
-        previewEl.createEl("div", {
-          text: `❌ 加载失败: ${String(e)}`,
+          text: `⚠️ 未找到「${ref.bookName}」的经文数据`,
           cls: "hint-text",
         });
         insertBtn.disabled = true;
+        return;
+      }
+
+      const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
+
+      if (verses.length === 0) {
+        previewEl.createEl("div", {
+          text: `⚠️ 未找到 ${ref.bookName} ${ref.chapter}:${ref.startVerse} 的经文`,
+          cls: "hint-text",
+        });
+        insertBtn.disabled = true;
+        return;
+      }
+
+      const verseLabel = ref.endVerse
+        ? `${ref.bookName} ${ref.chapter}:${ref.startVerse}-${ref.endVerse}`
+        : `${ref.bookName} ${ref.chapter}:${ref.startVerse}`;
+
+      previewEl.createEl("div", {
+        text: verseLabel,
+        cls: "hint-text",
+        attr: { style: "font-weight: 700; margin-bottom: 6px;" },
       });
+
+      for (const v of verses) {
+        const verseRow = previewEl.createEl("div", { cls: "preview-verse" });
+        verseRow.createEl("span", { text: `${v.verse}`, cls: "preview-verse-num" });
+        verseRow.createEl("span", { text: v.text });
+      }
+
+      insertBtn.disabled = false;
     };
 
     inputEl.addEventListener("input", () => {
@@ -189,9 +158,8 @@ export class ReferenceModal extends Modal {
 
     inputEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && currentRef && !insertBtn.disabled) {
-        void this.insertVerse(currentRef).then(() => {
-          this.close();
-        });
+        this.insertVerse(currentRef);
+        this.close();
       } else if (e.key === "Escape") {
         this.close();
       }
@@ -199,18 +167,16 @@ export class ReferenceModal extends Modal {
 
     insertBtn.addEventListener("click", () => {
       if (currentRef) {
-        void this.insertVerse(currentRef).then(() => {
-          this.close();
-        });
+        this.insertVerse(currentRef);
+        this.close();
       }
     });
 
     inputEl.focus();
   }
 
-  async insertVerse(ref: BibleReference) {
-    const adapter = this.app.vault.adapter as VaultAdapter;
-    const bookData = await loadBook(this.settings.defaultVersion, ref.bookId, adapter);
+  insertVerse(ref: BibleReference) {
+    const bookData = loadBook(this.settings.defaultVersion, ref.bookId);
 
     if (!bookData) {
       new Notice(`未找到「${ref.bookName}」的经文数据`);
@@ -231,8 +197,9 @@ export class ReferenceModal extends Modal {
       editor.replaceSelection(formattedText);
       new Notice(`已插入 ${ref.bookName} ${ref.chapter}:${ref.startVerse}${ref.endVerse ? `-${ref.endVerse}` : ''}`);
     } else {
-      await navigator.clipboard.writeText(formattedText);
-      new Notice("经文已复制到剪贴板（无活动编辑器）");
+      void navigator.clipboard.writeText(formattedText).then(() => {
+        new Notice("经文已复制到剪贴板（无活动编辑器）");
+      });
     }
   }
 

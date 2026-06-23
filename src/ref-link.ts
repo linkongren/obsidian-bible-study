@@ -1,19 +1,7 @@
-/**
- * 编辑器内经文引用链接装饰 + 悬停预览
- * - -约3:16 显示为可点击链接
- * - 点击 → 跳转到圣经面板
- * - 悬停 → 弹出经文预览
- */
-
 import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
 import { parseReference } from "./reference-modal";
 import { loadBook, getVerses } from "./bible-data";
 import type { VerseData } from "./types";
-
-interface VaultAdapter {
-  read: (path: string) => Promise<string>;
-  exists: (path: string) => Promise<boolean>;
-}
 
 interface PreviewCacheEntry {
   bookName: string;
@@ -68,7 +56,6 @@ function showTooltip(el: HTMLElement, doc: Document) {
   hideTooltip();
 
   const refText = el.getAttribute("data-bible-ref");
-  const bookId = el.getAttribute("data-book-id");
   if (!refText) return;
 
   const tip = doc.createElement("div");
@@ -79,14 +66,12 @@ function showTooltip(el: HTMLElement, doc: Document) {
     buildPreviewContent(tip, previewCache.get(cacheKey)!);
   } else {
     tip.createEl("div", { cls: "bible-ref-tooltip-loading", text: "加载中…" });
-    void loadPreview(refText, bookId).then((data) => {
-      if (data && currentTooltip === tip) {
-        tip.empty();
-        buildPreviewContent(tip, data);
-        positionTooltip(tip, el);
-      }
-      if (data) previewCache.set(cacheKey, data);
-    });
+    const data = loadPreview(refText);
+    if (data) {
+      tip.empty();
+      buildPreviewContent(tip, data);
+      previewCache.set(cacheKey, data);
+    }
   }
 
   doc.body.appendChild(tip);
@@ -122,44 +107,28 @@ function positionTooltip(tip: HTMLElement, anchor: HTMLElement) {
   tip.style.top = top + "px";
 }
 
-async function loadPreview(refText: string, bookIdHint?: string | null): Promise<PreviewCacheEntry | null> {
+function loadPreview(refText: string): PreviewCacheEntry | null {
   const ref = parseReference(refText);
   if (!ref) return null;
 
-  const adapter = window.__bibleAdapter;
-  if (!adapter) return null;
+  const bookData = loadBook("cuv", ref.bookId);
+  if (!bookData) return null;
 
-  try {
-    const bookData = await loadBook("cuv", ref.bookId, adapter);
-    if (!bookData) return null;
+  const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
+  if (verses.length === 0) return null;
 
-    const verses = getVerses(bookData, ref.chapter, ref.startVerse, ref.endVerse);
-    if (verses.length === 0) return null;
-
-    return {
-      bookName: ref.bookName,
-      chapter: ref.chapter,
-      startVerse: ref.startVerse,
-      endVerse: ref.endVerse,
-      verses,
-    };
-  } catch {
-    return null;
-  }
-}
-
-declare global {
-  interface Window {
-    __bibleAdapter?: VaultAdapter;
-  }
+  return {
+    bookName: ref.bookName,
+    chapter: ref.chapter,
+    startVerse: ref.startVerse,
+    endVerse: ref.endVerse,
+    verses,
+  };
 }
 
 export function createRefLinkExtension(
-  onClickRef: (refText: string) => void,
-  vaultAdapter: VaultAdapter
+  onClickRef: (refText: string) => void
 ) {
-  window.__bibleAdapter = vaultAdapter;
-
   const refLinkPlugin = ViewPlugin.fromClass(
     class {
       decorations: DecorationSet;

@@ -12,7 +12,7 @@ import { BibleStudySettings, DEFAULT_SETTINGS } from "./types";
 import { BibleStudySettingTab } from "./settings";
 import { ReferenceModal } from "./reference-modal";
 import { BibleReadingView, BIBLE_VIEW_TYPE } from "./bible-view";
-import { clearCache, setPluginDir } from "./bible-data";
+import { clearCache } from "./bible-data";
 import { doExpand, createTabExpandExtension } from "./inline-expand";
 import { createRefLinkExtension } from "./ref-link";
 import { parseReference } from "./reference-modal";
@@ -22,9 +22,6 @@ export default class BibleStudyPlugin extends Plugin {
 
   async onload() {
     console.log("Bible Study: 插件加载中...");
-
-    // 设置插件数据目录
-    setPluginDir(`${this.app.vault.configDir}/plugins/${this.manifest.id}/`);
 
     // 加载设置
     await this.loadSettings();
@@ -45,14 +42,14 @@ export default class BibleStudyPlugin extends Plugin {
 
     // 注册编辑器 Tab 展开扩展
     this.registerEditorExtension(
-      createTabExpandExtension(this.settings, this.app.vault.adapter)
+      createTabExpandExtension(this.settings)
     );
 
     // 注册引用链接装饰扩展（:ref 显示为可点击链接 + 悬停预览）
     this.registerEditorExtension(
       createRefLinkExtension((refText: string) => {
         void this.navigateToRef(refText);
-      }, this.app.vault.adapter)
+      })
     );
 
     // 注册命令：插入经文引用（优先内联展开，否则弹窗）
@@ -63,7 +60,7 @@ export default class BibleStudyPlugin extends Plugin {
         const editor = this.app.workspace.activeEditor?.editor;
         if (editor) {
           // 先尝试内联展开 :ref
-          const expanded = await doExpand(editor, this.settings, this.app.vault.adapter);
+          const expanded = await doExpand(editor, this.settings);
           if (expanded) return;
         }
         // 否则弹窗输入

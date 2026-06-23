@@ -1,11 +1,11 @@
 {
   "name": "obsidian-bible-study",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "圣经研读助手 - 快速引用经文和圣经阅读面板",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
-    "build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "build": "node scripts/bundle-data.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
     "fetch-bible": "node scripts/fetch-bible.js"
   },
   "devDependencies": {
