@@ -10,7 +10,7 @@ export function loadBook(version: string, bookId: string): BookData | null {
   if (dataCache.has(cacheKey)) {
     return dataCache.get(cacheKey)!;
   }
-  const data = BIBLE_DATA[bookId];
+  const data: BookData | undefined = BIBLE_DATA[bookId];
   if (data) {
     dataCache.set(cacheKey, data);
   }

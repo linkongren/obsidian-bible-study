@@ -60,7 +60,7 @@ export default class BibleStudyPlugin extends Plugin {
         const editor = this.app.workspace.activeEditor?.editor;
         if (editor) {
           // 先尝试内联展开 :ref
-          const expanded = await doExpand(editor, this.settings);
+          const expanded = doExpand(editor, this.settings);
           if (expanded) return;
         }
         // 否则弹窗输入
