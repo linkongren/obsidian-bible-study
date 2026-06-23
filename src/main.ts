@@ -12,17 +12,19 @@ import { BibleStudySettings, DEFAULT_SETTINGS } from "./types";
 import { BibleStudySettingTab } from "./settings";
 import { ReferenceModal } from "./reference-modal";
 import { BibleReadingView, BIBLE_VIEW_TYPE } from "./bible-view";
-import { clearCache } from "./bible-data";
+import { clearCache, setPluginDir } from "./bible-data";
 import { doExpand, createTabExpandExtension } from "./inline-expand";
 import { createRefLinkExtension } from "./ref-link";
 import { parseReference } from "./reference-modal";
-import { findBook } from "./book-names";
 
 export default class BibleStudyPlugin extends Plugin {
   settings: BibleStudySettings;
 
   async onload() {
     console.log("Bible Study: 插件加载中...");
+
+    // 设置插件数据目录
+    setPluginDir(`${this.app.vault.configDir}/plugins/${this.manifest.id}/`);
 
     // 加载设置
     await this.loadSettings();
@@ -38,7 +40,7 @@ export default class BibleStudyPlugin extends Plugin {
 
     // 添加 Ribbon 图标（左侧栏）
     this.addRibbonIcon("book-open", "打开圣经阅读面板", () => {
-      this.activateView();
+      void this.activateView();
     });
 
     // 注册编辑器 Tab 展开扩展
@@ -49,7 +51,7 @@ export default class BibleStudyPlugin extends Plugin {
     // 注册引用链接装饰扩展（:ref 显示为可点击链接 + 悬停预览）
     this.registerEditorExtension(
       createRefLinkExtension((refText: string) => {
-        this.navigateToRef(refText);
+        void this.navigateToRef(refText);
       }, this.app.vault.adapter)
     );
 
@@ -57,9 +59,6 @@ export default class BibleStudyPlugin extends Plugin {
     this.addCommand({
       id: "insert-bible-reference",
       name: "插入/展开经文引用",
-      hotkeys: [
-        { modifiers: ["Mod", "Shift"], key: "b" },
-      ],
       callback: async () => {
         const editor = this.app.workspace.activeEditor?.editor;
         if (editor) {
@@ -77,7 +76,7 @@ export default class BibleStudyPlugin extends Plugin {
       id: "open-bible-reading-panel",
       name: "打开圣经阅读面板",
       callback: () => {
-        this.activateView();
+        void this.activateView();
       },
     });
 
@@ -86,7 +85,7 @@ export default class BibleStudyPlugin extends Plugin {
       id: "lookup-selected-reference",
       name: "查找选中的经文引用",
       callback: () => {
-        this.lookupSelectedReference();
+        void this.lookupSelectedReference();
       },
     });
 
@@ -95,7 +94,6 @@ export default class BibleStudyPlugin extends Plugin {
 
   onunload() {
     console.log("Bible Study: 插件卸载");
-    this.app.workspace.detachLeavesOfType(BIBLE_VIEW_TYPE);
   }
 
   /**
@@ -129,7 +127,7 @@ export default class BibleStudyPlugin extends Plugin {
     const leaves = this.app.workspace.getLeavesOfType(BIBLE_VIEW_TYPE);
     for (const leaf of leaves) {
       if (leaf.view instanceof BibleReadingView) {
-        leaf.view.onOpen();
+        void leaf.view.onOpen();
       }
     }
   }
@@ -152,11 +150,11 @@ export default class BibleStudyPlugin extends Plugin {
           active: true,
         });
         leaf = rightLeaf;
-        workspace.revealLeaf(rightLeaf);
+        void workspace.revealLeaf(rightLeaf);
       }
     } else {
       // 已有面板，显示它
-      workspace.revealLeaf(leaf);
+      void workspace.revealLeaf(leaf);
     }
   }
 
@@ -202,7 +200,7 @@ export default class BibleStudyPlugin extends Plugin {
     modal.open();
 
     // 预填输入框（在 onOpen 中已创建）
-    setTimeout(() => {
+    window.setTimeout(() => {
       const input = modal.contentEl.querySelector("input");
       if (input) {
         input.value = selection;

@@ -3,19 +3,20 @@
  * 负责加载、缓存和管理圣经经文数据
  */
 
-import { BookData, ChapterData, VerseData, BibleReference } from "./types";
-import { getChapterCount } from "./book-names";
+import { BookData, ChapterData, VerseData } from "./types";
 
 /** 数据缓存：{ 版本/书卷ID -> BookData } */
 const dataCache: Map<string, BookData> = new Map();
 
-/**
- * 获取插件数据目录的绝对路径
- * 在 Obsidian 中通过 vault adapter 访问
- */
-function getDataPath(version: string): string {
-  // 插件数据目录：{vault}/.obsidian/plugins/bible-study/data/{version}/
-  return `data/${version}/`;
+/** 插件数据目录，由主插件设置 */
+let _pluginDir: string | null = null;
+
+export function setPluginDir(dir: string) {
+  _pluginDir = dir;
+}
+
+function getPluginDir(): string {
+  return _pluginDir || ".obsidian/plugins/bible-study/";
 }
 
 /**
@@ -28,12 +29,10 @@ export async function loadBook(
 ): Promise<BookData | null> {
   const cacheKey = `${version}/${bookId}`;
 
-  // 检查缓存
   if (dataCache.has(cacheKey)) {
     return dataCache.get(cacheKey)!;
   }
 
-  // 构建文件路径（相对于插件根目录）
   const pluginDir = getPluginDir();
   const filePath = `${pluginDir}data/${version}/${bookId}.json`;
 
@@ -45,21 +44,13 @@ export async function loadBook(
     }
 
     const raw = await adapter.read(filePath);
-    const data: BookData = JSON.parse(raw);
+    const data: BookData = JSON.parse(raw) as BookData;
     dataCache.set(cacheKey, data);
     return data;
   } catch (e) {
     console.error(`Bible Study: 加载书卷失败 ${bookId}:`, e);
     return null;
   }
-}
-
-/**
- * 获取插件根目录路径
- */
-function getPluginDir(): string {
-  // 在 Obsidian 中，插件文件系统访问使用相对于 vault 根目录的路径
-  return ".obsidian/plugins/bible-study/";
 }
 
 /**

@@ -244,6 +244,16 @@
   background: var(--interactive-accent-hover);
 }
 
+.bible-ref-modal .button-row {
+  display: flex;
+  gap: 8px;
+}
+
+.bible-ref-modal button.bible-ref-cancel-btn {
+  background: var(--background-secondary);
+  color: var(--text-normal);
+}
+
 .bible-ref-modal button:disabled {
   opacity: 0.5;
   cursor: not-allowed;

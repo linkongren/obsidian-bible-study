@@ -7,7 +7,6 @@ import {
   ItemView,
   WorkspaceLeaf,
   Notice,
-  setIcon,
 } from "obsidian";
 import { BookMeta, BibleStudySettings, ChapterData } from "./types";
 import { BOOKS } from "./book-names";
@@ -28,7 +27,6 @@ export class BibleReadingView extends ItemView {
   constructor(leaf: WorkspaceLeaf, settings: BibleStudySettings) {
     super(leaf);
     this.settings = settings;
-    // 默认显示约翰福音
     this.currentBook = BOOKS.find(b => b.id === "jhn") || BOOKS[0];
   }
 
@@ -51,22 +49,19 @@ export class BibleReadingView extends ItemView {
 
     this.currentBook = book;
     this.currentChapter = Math.min(chapter, book.chapters);
-    this.loadedBookId = ""; // 强制重新加载
+    this.loadedBookId = "";
     await this.loadCurrentChapter();
 
     const container = this.containerEl.children[1] as HTMLElement;
-    // 更新书卷下拉
     const bookSelect = container.querySelector(".bible-book-select") as HTMLSelectElement;
     if (bookSelect) bookSelect.value = bookId;
-    // 重建章下拉
     const chSelect = container.querySelector(".chapter-select") as HTMLSelectElement;
     if (chSelect) {
       chSelect.empty();
       for (let c = 1; c <= book.chapters; c++) {
-        const opt = document.createElement("option");
+        const opt = chSelect.createEl("option");
         opt.value = String(c);
         opt.textContent = `第 ${c} 章`;
-        chSelect.appendChild(opt);
       }
       chSelect.value = String(this.currentChapter);
     }
@@ -84,6 +79,7 @@ export class BibleReadingView extends ItemView {
 
   async render(container: HTMLElement) {
     container.empty();
+    const doc = container.ownerDocument;
 
     // === 头部导航栏 ===
     const header = container.createEl("div", { cls: "bible-reading-header" });
@@ -92,14 +88,14 @@ export class BibleReadingView extends ItemView {
     const bookSelect = header.createEl("select", { cls: "bible-book-select" });
 
     // 分组：旧约 / 新约
-    const oldGroup = document.createElement("optgroup");
+    const oldGroup = doc.createElement("optgroup");
     oldGroup.label = "── 旧约 ──";
 
-    const newGroup = document.createElement("optgroup");
+    const newGroup = doc.createElement("optgroup");
     newGroup.label = "── 新约 ──";
 
     for (const book of BOOKS) {
-      const option = document.createElement("option");
+      const option = doc.createElement("option");
       option.value = book.id;
       option.textContent = book.name;
 
@@ -117,25 +113,24 @@ export class BibleReadingView extends ItemView {
     bookSelect.appendChild(oldGroup);
     bookSelect.appendChild(newGroup);
 
-    bookSelect.addEventListener("change", async () => {
+    bookSelect.addEventListener("change", () => {
       const book = BOOKS.find(b => b.id === bookSelect.value);
       if (book) {
         this.currentBook = book;
         this.currentChapter = 1;
-        // 重新构建章下拉选项
         const chSelect = container.querySelector(".chapter-select") as HTMLSelectElement;
         if (chSelect) {
           chSelect.empty();
           for (let c = 1; c <= book.chapters; c++) {
-            const opt = document.createElement("option");
+            const opt = chSelect.createEl("option");
             opt.value = String(c);
             opt.textContent = `第 ${c} 章`;
-            chSelect.appendChild(opt);
           }
           chSelect.value = "1";
         }
-        await this.loadCurrentChapter();
-        this.renderContent(container);
+        void this.loadCurrentChapter().then(() => {
+          this.renderContent(container);
+        });
       }
     });
 
@@ -145,40 +140,40 @@ export class BibleReadingView extends ItemView {
     const prevBtn = chapterNav.createEl("button", { text: "◀" });
     prevBtn.setAttribute("aria-label", "上一章");
 
-    // 章下拉选择器
     const chapterSelect = chapterNav.createEl("select", { cls: "chapter-select" });
     chapterSelect.setAttribute("aria-label", "选择章节");
 
     const populateChapters = () => {
       chapterSelect.empty();
       for (let c = 1; c <= this.currentBook.chapters; c++) {
-        const opt = document.createElement("option");
+        const opt = chapterSelect.createEl("option");
         opt.value = String(c);
         opt.textContent = `第 ${c} 章`;
-        chapterSelect.appendChild(opt);
       }
       chapterSelect.value = String(this.currentChapter);
     };
     populateChapters();
 
-    chapterSelect.addEventListener("change", async () => {
+    chapterSelect.addEventListener("change", () => {
       const newChapter = parseInt(chapterSelect.value, 10);
       if (newChapter !== this.currentChapter) {
         this.currentChapter = newChapter;
-        await this.loadCurrentChapter();
-        this.renderContent(container);
+        void this.loadCurrentChapter().then(() => {
+          this.renderContent(container);
+        });
       }
     });
 
     const nextBtn = chapterNav.createEl("button", { text: "▶" });
     nextBtn.setAttribute("aria-label", "下一章");
 
-    const goToChapter = async (delta: number) => {
+    const goToChapter = (delta: number) => {
       const newChapter = this.currentChapter + delta;
       if (newChapter >= 1 && newChapter <= this.currentBook.chapters) {
         this.currentChapter = newChapter;
-        await this.loadCurrentChapter();
-        this.renderContent(container);
+        void this.loadCurrentChapter().then(() => {
+          this.renderContent(container);
+        });
       }
     };
 
@@ -206,19 +201,14 @@ export class BibleReadingView extends ItemView {
     const contentArea = container.createEl("div", { cls: "bible-verse-container" });
     contentArea.setAttribute("id", "bible-content-area");
 
-    // 加载并渲染经文
     await this.loadCurrentChapter();
     this.renderContent(container);
   }
 
-  /**
-   * 加载当前书卷的数据
-   */
   private async loadCurrentChapter(): Promise<void> {
-    // 如果书卷变了，重新加载书卷数据
     if (this.loadedBookId !== this.currentBook.id) {
       try {
-        const adapter = (this.app.vault.adapter as any);
+        const adapter = (this.app.vault.adapter as { read: (path: string) => Promise<string>; exists: (path: string) => Promise<boolean> });
         const data = await loadBook(this.settings.defaultVersion, this.currentBook.id, adapter);
 
         if (data) {
@@ -234,16 +224,11 @@ export class BibleReadingView extends ItemView {
     }
   }
 
-  /**
-   * 渲染经文内容
-   */
   private renderContent(container: HTMLElement) {
-    // 找到或创建内容区域
     let contentArea = container.querySelector("#bible-content-area") as HTMLElement;
     if (contentArea) {
       contentArea.empty();
     } else {
-      // 如果整个 panel 被重建，直接找
       contentArea = container.querySelector(".bible-verse-container") as HTMLElement;
       if (!contentArea) {
         contentArea = container.createEl("div", { cls: "bible-verse-container" });
@@ -251,13 +236,11 @@ export class BibleReadingView extends ItemView {
       }
     }
 
-    // 更新章下拉
     const chapterSelect = container.querySelector(".chapter-select") as HTMLSelectElement;
     if (chapterSelect) {
       chapterSelect.value = String(this.currentChapter);
     }
 
-    // 检查数据是否可用
     if (this.bookData.length === 0) {
       const noData = contentArea.createEl("div", { cls: "bible-no-data" });
       noData.createEl("h3", { text: "暂无圣经数据" });
@@ -267,7 +250,6 @@ export class BibleReadingView extends ItemView {
       return;
     }
 
-    // 获取当前章数据
     const chapterData = getChapterData({ book: this.currentBook.name, bookId: this.currentBook.id, chapters: this.bookData }, this.currentChapter);
 
     if (!chapterData) {
@@ -278,23 +260,21 @@ export class BibleReadingView extends ItemView {
       return;
     }
 
-    // 渲染每节经文
     for (const verse of chapterData.verses) {
       const verseEl = contentArea.createEl("div", { cls: "bible-verse" });
 
       if (this.settings.showVerseNumbers) {
-        const numEl = verseEl.createEl("span", {
+        verseEl.createEl("span", {
           text: `${verse.verse}`,
           cls: "verse-number",
         });
       }
 
-      const textEl = verseEl.createEl("span", {
+      verseEl.createEl("span", {
         text: verse.text,
         cls: "verse-text",
       });
 
-      // 点击插入到编辑器
       verseEl.addEventListener("click", () => {
         const editor = this.app.workspace.activeEditor?.editor;
         if (editor) {
@@ -306,10 +286,9 @@ export class BibleReadingView extends ItemView {
         }
       });
 
-      // 双击复制单节
       verseEl.addEventListener("dblclick", () => {
         const text = `${this.currentBook.name} ${this.currentChapter}:${verse.verse}  ${verse.text}`;
-        navigator.clipboard.writeText(text).then(() => {
+        void navigator.clipboard.writeText(text).then(() => {
           new Notice(`已复制 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
         });
       });

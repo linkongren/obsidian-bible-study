@@ -1,6 +1,6 @@
 /**
  * 内联引用展开
- * 在编辑器中输入 :约3:16 然后按 Tab，直接将引用替换为经文
+ * 在编辑器中输入 -约3:16 然后按 Tab，直接将引用替换为经文
  */
 
 import { Editor, Notice } from "obsidian";
@@ -10,19 +10,13 @@ import { parseReference } from "./reference-modal";
 import { loadBook, getVerses, formatVersePlain } from "./bible-data";
 import { BibleStudySettings } from "./types";
 
-/**
- * 匹配 :ref 或 ;ref 模式的正则
- * 组1: 触发符 (: 或 ;)
- * 组2: 引用文本 (书名+章:节)
- *
- * 支持格式：
- *   :约3:16     :约翰福音 3:16     :yuehan 3:16-18
- */
-const REF_PATTERN = /(?:^|[\s([{（【『「])([:;])([一-鿿a-zA-Z]+)\s*(\d+)[：:](\d+)(?:[-–—](\d+))?$/;
+interface VaultAdapter {
+  read: (path: string) => Promise<string>;
+  exists: (path: string) => Promise<boolean>;
+}
 
-/**
- * 从编辑器光标位置向前查找内联引用模式
- */
+const REF_PATTERN = /(?:^|[\s([{（【『「])([-])([一-鿿a-zA-Z]+)\s*(\d+)[：:](\d+)(?:[-–—](\d+))?$/;
+
 export function findRefBeforeCursor(editor: Editor): { ref: string; from: number; to: number } | null {
   const cursor = editor.getCursor();
   const line = editor.getLine(cursor.line);
@@ -31,9 +25,7 @@ export function findRefBeforeCursor(editor: Editor): { ref: string; from: number
   const match = before.match(REF_PATTERN);
   if (!match) return null;
 
-  // match[1]=触发符, match[2]=书名, match[3]=章, match[4]=节, match[5]=结束节
   const refText = match[2] + " " + match[3] + ":" + match[4] + (match[5] ? "-" + match[5] : "");
-  const triggerLen = match[1].length;
   const totalLen = match[0].length;
 
   return {
@@ -43,13 +35,10 @@ export function findRefBeforeCursor(editor: Editor): { ref: string; from: number
   };
 }
 
-/**
- * 执行内联展开（Ctrl+Shift+B 命令调用）
- */
 export async function doExpand(
   editor: Editor,
   settings: BibleStudySettings,
-  adapter: any
+  adapter: VaultAdapter
 ): Promise<boolean> {
   const found = findRefBeforeCursor(editor);
   if (!found) return false;
@@ -72,12 +61,9 @@ export async function doExpand(
   return true;
 }
 
-/**
- * 创建 CodeMirror 扩展：Tab 键触发内联展开
- */
 export function createTabExpandExtension(
   settings: BibleStudySettings,
-  adapter: any
+  adapter: VaultAdapter
 ) {
   return Prec.highest(
     keymap.of([{
@@ -90,7 +76,6 @@ export function createTabExpandExtension(
         const match = before.match(REF_PATTERN);
         if (!match) return false;
 
-        // match[2]=书名, match[3]=章, match[4]=节, match[5]=结束节
         const bookName = match[2];
         const chapter = match[3];
         const verse = match[4];
@@ -100,10 +85,9 @@ export function createTabExpandExtension(
         const ref = parseReference(refText);
         if (!ref) return false;
 
-        // 替换范围：从触发符 : 到光标位置
         const from = line.from + match.index!;
 
-        loadBook(settings.defaultVersion, ref.bookId, adapter).then((bookData) => {
+        void loadBook(settings.defaultVersion, ref.bookId, adapter).then((bookData) => {
           if (!bookData) {
             new Notice(`未找到「${ref.bookName}」的经文数据`);
             return;
@@ -125,7 +109,7 @@ export function createTabExpandExtension(
           );
         });
 
-        return true; // 拦截 Tab
+        return true;
       },
     }])
   );

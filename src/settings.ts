@@ -17,10 +17,10 @@ export class BibleStudySettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl("h2", { text: "Bible Study 设置" });
+    new Setting(containerEl).setName("Bible Study 设置").setHeading();
 
     // === 经文版本 ===
-    containerEl.createEl("h3", { text: "圣经版本" });
+    new Setting(containerEl).setName("圣经版本").setHeading();
 
     new Setting(containerEl)
       .setName("默认译本")
@@ -36,7 +36,7 @@ export class BibleStudySettingTab extends PluginSettingTab {
       });
 
     // === 显示设置 ===
-    containerEl.createEl("h3", { text: "显示设置" });
+    new Setting(containerEl).setName("显示设置").setHeading();
 
     new Setting(containerEl)
       .setName("显示经文编号")
@@ -71,21 +71,20 @@ export class BibleStudySettingTab extends PluginSettingTab {
         slider
           .setLimits(12, 24, 1)
           .setValue(this.plugin.settings.fontSize)
-          .setDynamicTooltip()
           .onChange(async (value) => {
             this.plugin.settings.fontSize = value;
             await this.plugin.saveSettings();
-            // 动态更新面板字号
             document.documentElement.style.setProperty("--bible-font-size", `${value}px`);
           });
       });
 
     // === 数据管理 ===
-    containerEl.createEl("h3", { text: "数据管理" });
+    new Setting(containerEl).setName("数据管理").setHeading();
 
+    const configDir = this.app.vault.configDir;
     const dataInfo = containerEl.createEl("div", { cls: "setting-item-description" });
     dataInfo.createEl("p", {
-      text: "经文数据存储在 .obsidian/plugins/bible-study/data/cuv/ 目录下，每卷书一个 JSON 文件。",
+      text: `经文数据存储在 ${configDir}/plugins/bible-study/data/cuv/ 目录下，每卷书一个 JSON 文件。`,
     });
     dataInfo.createEl("p", {
       text: "运行 node scripts/fetch-bible.js 可从在线 API 下载完整的和合本经文数据。",
@@ -98,7 +97,6 @@ export class BibleStudySettingTab extends PluginSettingTab {
         button
           .setButtonText("刷新缓存")
           .onClick(() => {
-            // 触发数据重新加载
             this.plugin.refreshData();
           });
       });
