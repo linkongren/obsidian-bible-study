@@ -34,14 +34,17 @@ export class BibleReadingView extends ItemView {
     return "book-open";
   }
 
-  async navigateTo(bookId: string, chapter: number) {
+  private targetVerse: number | undefined;
+
+  async navigateTo(bookId: string, chapter: number, verse?: number) {
     const book = BOOKS.find(b => b.id === bookId);
     if (!book) return;
 
     this.currentBook = book;
     this.currentChapter = Math.min(chapter, book.chapters);
+    this.targetVerse = verse;
     this.loadedBookId = "";
-    this.loadCurrentChapter();
+    await this.loadCurrentChapter();
 
     const container = this.containerEl.children[1] as HTMLElement;
     const bookSelect = container.querySelector(".bible-book-select") as HTMLSelectElement;
@@ -64,6 +67,26 @@ export class BibleReadingView extends ItemView {
     container.empty();
     container.addClass("bible-reading-panel");
     container.setAttr("style", `--bible-font-size: ${this.settings.fontSize}px;`);
+
+    // 查找并移除属于本 leaf 的关闭按钮
+    const removeCloseBtn = () => {
+      const leafEl = this.containerEl.closest(".workspace-leaf");
+      if (!leafEl) return;
+      const btns = leafEl.querySelectorAll("button, [aria-label]");
+      btns.forEach((btn: Element) => {
+        const aria = btn.getAttribute("aria-label") || "";
+        const cls = (btn as HTMLElement).className || "";
+        if (aria === "Close" || aria === "关闭" || aria === "Close pane" || cls.includes("close") || cls.includes("view-action")) {
+          btn.remove();
+        }
+      });
+    };
+    removeCloseBtn();
+    // MutationObserver 应对 Obsidian 重新渲染
+    const observer = new MutationObserver(() => removeCloseBtn());
+    const leafEl = this.containerEl.closest(".workspace-leaf");
+    if (leafEl) observer.observe(leafEl, { childList: true, subtree: true });
+    this._closeObserver = observer;
 
     await this.render(container);
   }
@@ -256,14 +279,19 @@ export class BibleReadingView extends ItemView {
 
       verseEl.addEventListener("click", () => {
         const editor = this.app.workspace.activeEditor?.editor;
+        const text = `${this.currentBook.name} ${this.currentChapter}:${verse.verse}  ${verse.text}`;
         if (editor) {
           const citation = `> **${this.currentBook.name} ${this.currentChapter}:${verse.verse}**\n> ${verse.text}\n`;
           editor.replaceSelection(citation);
           new Notice(`已插入 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
         } else {
-          new Notice("请先打开一个笔记文件");
+          navigator.clipboard.writeText(text).then(() => {
+            new Notice(`已复制 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
+          });
         }
       });
+
+      verseEl.setAttribute("data-verse", String(verse.verse));
 
       verseEl.addEventListener("dblclick", () => {
         const text = `${this.currentBook.name} ${this.currentChapter}:${verse.verse}  ${verse.text}`;
@@ -272,9 +300,22 @@ export class BibleReadingView extends ItemView {
         });
       });
     }
+
+    // 滚动到目标节
+    if (this.targetVerse !== undefined) {
+      const targetEl = contentArea.querySelector(`.bible-verse[data-verse="${this.targetVerse}"]`);
+      if (targetEl) {
+        targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        targetEl.classList.add("bible-verse-highlight");
+        setTimeout(() => targetEl.classList.remove("bible-verse-highlight"), 2000);
+      }
+      this.targetVerse = undefined;
+    }
   }
 
   async onClose() {
-    // 清理
+    if (this._closeObserver) { this._closeObserver.disconnect(); }
   }
+
+  private _closeObserver: MutationObserver | null = null;
 }

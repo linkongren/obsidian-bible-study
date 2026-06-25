@@ -18,53 +18,10 @@
   text-decoration-style: solid;
 }
 
-/* ---- Hover Preview Tooltip ---- */
-.bible-ref-tooltip {
-  position: fixed;
-  z-index: 1000;
-  max-width: 400px;
-  max-height: 280px;
-  overflow-y: auto;
-  background: var(--background-primary);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  padding: 0;
-  font-size: 13px;
-  line-height: 1.7;
-  pointer-events: auto;
-}
-
-.bible-ref-tooltip-header {
-  padding: 8px 12px;
-  font-weight: 700;
-  color: var(--text-accent);
-  border-bottom: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  border-radius: 8px 8px 0 0;
-  font-size: 13px;
-}
-
-.bible-ref-tooltip-body {
-  padding: 8px 12px;
-}
-
-.bible-ref-tooltip-verse {
-  padding: 3px 0;
-  color: var(--text-normal);
-}
-
-.bible-ref-tooltip-vn {
-  font-weight: 700;
-  color: var(--text-accent);
-  margin-right: 6px;
-  font-size: 0.85em;
-}
-
-.bible-ref-tooltip-loading {
-  padding: 12px 16px;
-  color: var(--text-muted);
-  text-align: center;
+/* Hide close button on Bible panel */
+.workspace-leaf.bible-study-leaf .view-action[aria-label="Close"],
+.workspace-leaf.bible-study-leaf .view-action[aria-label="关闭"] {
+  display: none !important;
 }
 
 /* ---- Bible Reading Panel ---- */
@@ -170,6 +127,12 @@
 
 .bible-verse .verse-text {
   color: var(--text-normal);
+}
+
+.bible-verse-highlight {
+  background-color: var(--text-highlight-bg);
+  border-radius: 4px;
+  transition: background-color 0.3s;
 }
 
 .bible-data-hint {

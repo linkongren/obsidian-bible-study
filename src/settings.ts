@@ -79,6 +79,51 @@ export class BibleStudySettingTab extends PluginSettingTab {
           });
       });
 
+    // === 内联展开 ===
+    new Setting(containerEl).setName("内联展开").setHeading();
+
+    new Setting(containerEl)
+      .setName("启用内联展开")
+      .setDesc("在编辑器中输入 -ref 后按 Tab 或 Enter 两步展开经文")
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.inlineExpandEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.inlineExpandEnabled = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("展开快捷键")
+      .setDesc("选择触发内联展开的按键")
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption("tab", "Tab")
+          .addOption("enter", "Enter")
+          .addOption("both", "Tab + Enter")
+          .setValue(this.plugin.settings.expandKey)
+          .onChange(async (value) => {
+            this.plugin.settings.expandKey = value as "tab" | "enter" | "both";
+            await this.plugin.saveSettings();
+          });
+      });
+
+    // === 阅读模式 ===
+    new Setting(containerEl).setName("阅读模式").setHeading();
+
+    new Setting(containerEl)
+      .setName("启用点击跳转")
+      .setDesc("阅读模式下，点击 *经文引用* 跳转到圣经面板")
+      .addToggle(toggle => {
+        toggle
+          .setValue(this.plugin.settings.readingClickEnabled)
+          .onChange(async (value) => {
+            this.plugin.settings.readingClickEnabled = value;
+            await this.plugin.saveSettings();
+          });
+      });
+
     // === 数据管理 ===
     new Setting(containerEl).setName("数据管理").setHeading();
 

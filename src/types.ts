@@ -43,6 +43,9 @@ export interface BibleStudySettings {
   verseFormat: 'full' | 'short';
   showVerseNumbers: boolean;
   fontSize: number;
+  inlineExpandEnabled: boolean;
+  expandKey: 'tab' | 'enter' | 'both';
+  readingClickEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: BibleStudySettings = {
@@ -50,6 +53,9 @@ export const DEFAULT_SETTINGS: BibleStudySettings = {
   verseFormat: 'full',
   showVerseNumbers: true,
   fontSize: 14,
+  inlineExpandEnabled: true,
+  expandKey: 'tab',
+  readingClickEnabled: true,
 };
 
 /** 译本元信息 */

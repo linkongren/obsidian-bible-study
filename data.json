@@ -1,0 +1,11 @@
+{
+  "defaultVersion": "cuv",
+  "verseFormat": "full",
+  "showVerseNumbers": true,
+  "fontSize": 14,
+  "inlineExpandEnabled": true,
+  "expandKey": "both",
+  "hoverPreviewEnabled": true,
+  "readingPreviewEnabled": true,
+  "readingClickEnabled": true
+}

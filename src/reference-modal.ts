@@ -4,49 +4,103 @@ import { findBook } from "./book-names";
 import { loadBook, getVerses, formatVersePlain } from "./bible-data";
 
 export function parseReference(input: string): BibleReference | null {
+  const results = parseMultiReference(input);
+  return results.length > 0 ? results[0] : null;
+}
+
+/** 解析逗号分隔的多段引用，如 "约 3:16,3:17-18,4:1" */
+export function parseMultiReference(input: string): BibleReference[] {
   const trimmed = input.trim();
-  if (!trimmed) return null;
+  if (!trimmed) return [];
 
-  const patterns = [
-    /^([一-鿿\s]+?)\s*(\d+)\s*:\s*(\d+)(?:\s*[-–—]\s*(\d+))?$/,
-    /^([a-zA-Z\s\d]+?)\s+(\d+)\s*:\s*(\d+)(?:\s*[-–—]\s*(\d+))?$/i,
-    /^([一-鿿]+?)(\d+)\s*:\s*(\d+)(?:\s*[-–—]\s*(\d+))?$/,
-  ];
+  // 提取书名和后面的章:节部分
+  const bookMatch = trimmed.match(/^([一-鿿a-zA-Z]+)\s+(.+)$/);
+  if (!bookMatch) {
+    // 可能没有空格：约3:16
+    const compactMatch = trimmed.match(/^([一-鿿a-zA-Z]+)(\d+.+)$/);
+    if (!compactMatch) return [];
+    const book = findBook(compactMatch[1]);
+    if (!book) return [];
+    return parseVerseRanges(book, compactMatch[2]);
+  }
 
-  let bookName = "";
-  let chapter = 0;
-  let startVerse = 0;
-  let endVerse: number | undefined;
+  const book = findBook(bookMatch[1]);
+  if (!book) return [];
+  return parseVerseRanges(book, bookMatch[2]);
+}
 
-  for (const pattern of patterns) {
-    const match = trimmed.match(pattern);
+/** 解析章:节列表部分 */
+function parseVerseRanges(book: import("./types").BookMeta, rangesStr: string): BibleReference[] {
+  const results: BibleReference[] = [];
+  const parts = rangesStr.split(/[,，]/);
+
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+
+    // 章:节-节 或 章:节 或 章:节-节,节
+    let match = trimmed.match(/^(\d+)\s*[：:]\s*(\d+)(?:\s*[-–—]\s*(\d+))?$/);
     if (match) {
-      bookName = match[1].trim();
-      chapter = parseInt(match[2], 10);
-      startVerse = parseInt(match[3], 10);
-      if (match[4] !== undefined) {
-        endVerse = parseInt(match[4], 10);
-      }
-      break;
+      const chapter = parseInt(match[1], 10);
+      const startVerse = parseInt(match[2], 10);
+      const endVerse = match[3] ? parseInt(match[3], 10) : undefined;
+      results.push({
+        bookId: book.id,
+        bookName: book.name,
+        chapter,
+        startVerse,
+        endVerse: endVerse && endVerse > startVerse ? endVerse : undefined,
+      });
+      continue;
+    }
+
+    // 空格分隔：章 节 或 章 节 止节
+    match = trimmed.match(/^(\d+)\s+(\d+)(?:\s+(\d+))?$/);
+    if (match) {
+      const chapter = parseInt(match[1], 10);
+      const startVerse = parseInt(match[2], 10);
+      const endVerse = match[3] ? parseInt(match[3], 10) : undefined;
+      results.push({
+        bookId: book.id,
+        bookName: book.name,
+        chapter,
+        startVerse,
+        endVerse: endVerse && endVerse > startVerse ? endVerse : undefined,
+      });
+      continue;
+    }
+
+    // 单个数字：继承上一段的章，作为节
+    match = trimmed.match(/^(\d+)$/);
+    if (match && results.length > 0) {
+      const lastChapter = results[results.length - 1].chapter;
+      const verse = parseInt(match[1], 10);
+      results.push({
+        bookId: book.id,
+        bookName: book.name,
+        chapter: lastChapter,
+        startVerse: verse,
+      });
+      continue;
+    }
+
+    // 节-节 范围：继承上一段的章
+    match = trimmed.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+    if (match && results.length > 0) {
+      const lastChapter = results[results.length - 1].chapter;
+      const startVerse = parseInt(match[1], 10);
+      const endVerse = parseInt(match[2], 10);
+      results.push({
+        bookId: book.id,
+        bookName: book.name,
+        chapter: lastChapter,
+        startVerse,
+        endVerse: endVerse > startVerse ? endVerse : undefined,
+      });
     }
   }
 
-  if (!bookName || !chapter || !startVerse) {
-    return null;
-  }
-
-  const book = findBook(bookName);
-  if (!book) {
-    return null;
-  }
-
-  return {
-    bookId: book.id,
-    bookName: book.name,
-    chapter,
-    startVerse,
-    endVerse: endVerse && endVerse > startVerse ? endVerse : undefined,
-  };
+  return results;
 }
 
 export class ReferenceModal extends Modal {
