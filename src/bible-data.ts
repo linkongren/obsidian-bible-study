@@ -1,3 +1,4 @@
+import { requestUrl } from "obsidian";
 import { BookData, ChapterData, VerseData } from "./types";
 
 interface VaultAdapter {
@@ -37,31 +38,13 @@ export async function downloadBibleData(
 
   onProgress("正在下载圣经数据...", false);
   try {
-    const resp = await fetch(DATA_URL);
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const total = Number(resp.headers.get("content-length") || 0);
-    const reader = resp.body!.getReader();
-    const chunks: Uint8Array[] = [];
-    let received = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      received += value.length;
-      if (total > 0) {
-        const pct = Math.round((received / total) * 100);
-        onProgress(`正在下载圣经数据 ${pct}%...`, false);
-      }
-    }
-
-    const text = new TextDecoder().decode(
-      chunks.reduce((acc, c) => { const t = new Uint8Array(acc.length + c.length); t.set(acc); t.set(c, acc.length); return t; }, new Uint8Array(0))
-    );
-
+    const resp = await requestUrl({ url: DATA_URL });
+    if (resp.status !== 200) throw new Error(`HTTP ${resp.status}`);
+    const text = resp.text;
     if (_adapter) await _adapter.write(filePath, text);
     await loadFromFile(filePath);
-    onProgress(`圣经数据下载完成 (${(received / 1024 / 1024).toFixed(1)}MB)`, true);
+    const mb = (text.length / 1024 / 1024).toFixed(1);
+    onProgress(`圣经数据下载完成 (${mb}MB)`, true);
     return true;
   } catch {
     onProgress("下载失败，请检查网络", true);

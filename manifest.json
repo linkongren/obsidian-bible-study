@@ -1,7 +1,7 @@
 {
   "id": "bible-study",
   "name": "Bible Study",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "minAppVersion": "1.3.0",
   "description": "圣经研读助手 — 快速引用经文、圣经阅读面板，支持和合本 (CUV).",
   "author": "linkongren",
