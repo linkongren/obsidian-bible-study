@@ -106,7 +106,7 @@ export function doExpand(editor: Editor, settings: BibleStudySettings): boolean 
     if (refs.length > 0) {
       const label = formatMultiLabel(refs);
       const cursor = editor.getCursor();
-      editor.replaceRange(`*${label}*`, { line: cursor.line, ch: trigger.from }, cursor);
+      editor.replaceRange(`*${label}*`, { line: cursor.line, ch: trigger.from }, { line: cursor.line, ch: trigger.to });
       return true;
     }
   }
