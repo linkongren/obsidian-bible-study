@@ -11,7 +11,7 @@ const dataCache: Map<string, BookData> = new Map();
 let _adapter: VaultAdapter | null = null;
 let _pluginDir: string | null = null;
 
-const DATA_URL = "https://github.com/linkongren/obsidian-bible-study/releases/latest/download/bible-data.json";
+const API_URL = "https://api.github.com/repos/linkongren/obsidian-bible-study/releases/latest";
 
 /** Initialize — only checks local cache, does NOT auto-download */
 export async function initBibleData(adapter: VaultAdapter, pluginDir: string): Promise<void> {
@@ -36,18 +36,29 @@ export async function downloadBibleData(
     return true;
   }
 
-  onProgress("正在下载圣经数据...", false);
+  onProgress("正在获取下载地址...", false);
   try {
-    const resp = await requestUrl({ url: DATA_URL });
-    if (resp.status !== 200) throw new Error(`HTTP ${resp.status}`);
-    const text = resp.text;
+    // Step 1: Get download URL from GitHub API (CORS-friendly)
+    const apiResp = await requestUrl({ url: API_URL });
+    if (apiResp.status !== 200) throw new Error(`API ${apiResp.status}`);
+    const release = apiResp.json;
+    const asset = (release.assets as Array<{ name: string; browser_download_url: string }>)
+      .find(a => a.name === "bible-data.json");
+    if (!asset) throw new Error("未找到数据文件");
+
+    // Step 2: Download the actual data
+    onProgress("正在下载圣经数据...", false);
+    const dataResp = await requestUrl({ url: asset.browser_download_url });
+    if (dataResp.status !== 200) throw new Error(`Download ${dataResp.status}`);
+    const text = dataResp.text;
     if (_adapter) await _adapter.write(filePath, text);
     await loadFromFile(filePath);
     const mb = (text.length / 1024 / 1024).toFixed(1);
-    onProgress(`圣经数据下载完成 (${mb}MB)`, true);
+    onProgress(`下载完成 (${mb}MB)`, true);
     return true;
-  } catch {
-    onProgress("下载失败，请检查网络", true);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    onProgress(`下载失败: ${msg}`, true);
     return false;
   }
 }
