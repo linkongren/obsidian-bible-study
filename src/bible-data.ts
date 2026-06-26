@@ -1,20 +1,76 @@
 import { BookData, ChapterData, VerseData } from "./types";
-import { BIBLE_DATA } from "./bible-data-bundle";
+import { Notice } from "obsidian";
 
-/** Data cache: { version/bookId -> BookData } */
+interface VaultAdapter {
+  read(path: string): Promise<string>;
+  exists(path: string): Promise<boolean>;
+  write(path: string, data: string): Promise<void>;
+}
+
 const dataCache: Map<string, BookData> = new Map();
+let _adapter: VaultAdapter | null = null;
+let _pluginDir: string | null = null;
+let _downloadStarted = false;
+let _downloadPromise: Promise<boolean> | null = null;
 
-/** Get book data (synchronous, from bundled data) */
+const DATA_URL = "https://github.com/linkongren/obsidian-bible-study/releases/latest/download/bible-data.json";
+
+export function initBibleData(adapter: VaultAdapter, pluginDir: string): Promise<boolean> {
+  _adapter = adapter;
+  _pluginDir = pluginDir;
+
+  if (_downloadPromise) return _downloadPromise;
+  _downloadPromise = doInit();
+  return _downloadPromise;
+}
+
+async function doInit(): Promise<boolean> {
+  if (_downloadStarted) return true;
+  _downloadStarted = true;
+
+  const filePath = _pluginDir + "bible-data.json";
+
+  // Check if data file exists locally
+  if (_adapter && await _adapter.exists(filePath)) {
+    return loadFromFile(filePath);
+  }
+
+  // Download from GitHub Release
+  new Notice("正在下载圣经数据（仅首次需要）...");
+  try {
+    const resp = await fetch(DATA_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    if (_adapter) await _adapter.write(filePath, text);
+    new Notice("圣经数据下载完成");
+    return loadFromFile(filePath);
+  } catch {
+    new Notice("圣经数据下载失败，请检查网络后重新加载");
+    return false;
+  }
+}
+
+async function loadFromFile(filePath: string): Promise<boolean> {
+  try {
+    const raw = await _adapter!.read(filePath);
+    const all = JSON.parse(raw) as Record<string, BookData>;
+    dataCache.clear();
+    for (const [id, book] of Object.entries(all)) {
+      dataCache.set(`cuv/${id}`, book);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Get book data (synchronous) */
 export function loadBook(version: string, bookId: string): BookData | null {
   const cacheKey = `${version}/${bookId}`;
   if (dataCache.has(cacheKey)) {
     return dataCache.get(cacheKey)!;
   }
-  const data: BookData | undefined = BIBLE_DATA[bookId];
-  if (data) {
-    dataCache.set(cacheKey, data);
-  }
-  return data ?? null;
+  return null;
 }
 
 export function getChapter(bookData: BookData, chapter: number): ChapterData | null {
