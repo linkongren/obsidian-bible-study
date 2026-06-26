@@ -11,7 +11,7 @@ const dataCache: Map<string, BookData> = new Map();
 let _adapter: VaultAdapter | null = null;
 let _pluginDir: string | null = null;
 
-const API_URL = "https://cdn.jsdelivr.net/gh/linkongren/obsidian-bible-study@main/bible-data.json";
+const API_URL = "https://cdn.jsdelivr.net/gh/linkongren/obsidian-bible-study@master/bible-data.json";
 
 /** Initialize — only checks local cache, does NOT auto-download */
 export async function initBibleData(adapter: VaultAdapter, pluginDir: string): Promise<void> {
