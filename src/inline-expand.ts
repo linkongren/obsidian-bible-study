@@ -33,9 +33,6 @@ function loadMultiVerses(settings: BibleStudySettings, refs: BibleReference[]): 
 /** -ref 模式：捕获 -书卷 后面的全部内容，交给 parseMultiReference 解析 */
 const REF_TRIGGER_RE = /(?:^|[\s([{（【『「])([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)$/;
 
-/** *ref* 模式：*约翰福音 3:16* */
-const STAR_PATTERN = /\*([^*]+)\*$/;
-
 /**
  * 从编辑器光标向前查找 -ref 模式
  */
@@ -51,19 +48,24 @@ function findTriggerRef(editor: Editor): { refText: string; from: number; to: nu
 }
 
 /**
- * 从编辑器光标向前查找 *引用* 模式
+ * 从编辑器光标查找 *引用* 模式（光标在片段内或后面都可以）
  */
 function findBracketRef(editor: Editor): { refText: string; from: number; to: number } | null {
   const cursor = editor.getCursor();
   const line = editor.getLine(cursor.line);
-  const before = line.slice(0, cursor.ch);
-  const match = before.match(STAR_PATTERN);
-  if (!match) return null;
-  const refText = match[1].trim();
-  if (!refText) return null;
-  const ref = parseReference(refText);
-  if (!ref) return null;
-  return { refText, from: cursor.ch - match[0].length, to: cursor.ch };
+  const re = /\*([^*]+)\*/g;
+  let match;
+  while ((match = re.exec(line)) !== null) {
+    const end = match.index + match[0].length;
+    if (cursor.ch >= match.index && cursor.ch <= end) {
+      const refText = match[1].trim();
+      if (!refText) continue;
+      const ref = parseReference(refText);
+      if (!ref) continue;
+      return { refText, from: match.index, to: end };
+    }
+  }
+  return null;
 }
 
 export function findRefBeforeCursor(editor: Editor): { ref: string; from: number; to: number } | null {
@@ -112,17 +114,24 @@ function makeExpandHandler(settings: BibleStudySettings) {
   const line = view.state.doc.lineAt(pos);
   const before = line.text.slice(0, pos - line.from);
 
-  // 步骤2：光标前是 *引用*，追加经文
-  const bracketMatch = before.match(STAR_PATTERN);
-  if (bracketMatch) {
-    const refs = parseMultiReference(bracketMatch[1].trim());
-    if (refs.length > 0) {
-      const verses = loadMultiVerses(settings, refs);
-      if (verses) {
-        view.dispatch({ changes: { from: pos, insert: formatVerseOnly(verses) } });
-        new Notice(formatMultiLabel(refs));
-        return true;
+  // 步骤2：光标在 *引用* 内或后面，追加经文
+  const fullLine = line.text;
+  const posInLine = pos - line.from;
+  const starRe = /\*([^*]+)\*/g;
+  let starMatch;
+  while ((starMatch = starRe.exec(fullLine)) !== null) {
+    const end = starMatch.index + starMatch[0].length;
+    if (posInLine >= starMatch.index && posInLine <= end) {
+      const refs = parseMultiReference(starMatch[1].trim());
+      if (refs.length > 0) {
+        const verses = loadMultiVerses(settings, refs);
+        if (verses) {
+          view.dispatch({ changes: { from: pos, insert: formatVerseOnly(verses) } });
+          new Notice(formatMultiLabel(refs));
+          return true;
+        }
       }
+      break;
     }
   }
 
