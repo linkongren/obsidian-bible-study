@@ -1,6 +1,6 @@
 {
   "name": "obsidian-bible-study",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "圣经研读助手 - 快速引用经文和圣经阅读面板",
   "main": "main.js",
   "scripts": {
