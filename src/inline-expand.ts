@@ -46,7 +46,8 @@ function findTriggerRef(editor: Editor): { refText: string; from: number; to: nu
   const match = before.match(REF_TRIGGER_RE);
   if (!match) return null;
   const refText = match[2] + " " + match[3];
-  return { refText, from: cursor.ch - match[0].length, to: cursor.ch };
+  const triggerPos = match[0].indexOf(match[1]);
+  return { refText, from: cursor.ch - match[0].length + triggerPos, to: cursor.ch };
 }
 
 /**
@@ -132,7 +133,8 @@ function makeExpandHandler(settings: BibleStudySettings) {
     const refs = parseMultiReference(refText);
     if (refs.length > 0) {
       const label = formatMultiLabel(refs);
-      const from = line.from + refMatch.index!;
+      const triggerPos = refMatch[0].indexOf(refMatch[1]);
+      const from = line.from + refMatch.index! + triggerPos;
       view.dispatch({ changes: { from, to: pos, insert: `*${label}*` } });
       return true;
     }
