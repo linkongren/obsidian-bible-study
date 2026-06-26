@@ -31,31 +31,23 @@ function loadMultiVerses(settings: BibleStudySettings, refs: BibleReference[]): 
 }
 
 /** -ref 模式：捕获 -书卷 后面的全部内容，交给 parseMultiReference 解析 */
-const TRIGGER_BOOK_RE = /([-！])([一-鿿a-zA-Z]+)\s*$/;
-const REF_PART_RE = /^([\d：:\s,，\-–—]*)/;
-
 /**
  * 从编辑器光标向前查找 -ref 模式
  */
 function findTriggerRef(editor: Editor): { refText: string; from: number; to: number } | null {
   const cursor = editor.getCursor();
   const line = editor.getLine(cursor.line);
-  const before = line.slice(0, cursor.ch);
-  const after = line.slice(cursor.ch);
-
-  const tMatch = before.match(TRIGGER_BOOK_RE);
-  if (!tMatch) return null;
-
-  const bookName = tMatch[2];
-  const rMatch = after.match(REF_PART_RE)!;
-  const refPart = rMatch[1].trim();
-  const refText = bookName + (refPart ? " " + refPart : "");
-
-  const triggerPos = tMatch[0].indexOf(tMatch[1]);
-  const from = cursor.ch - tMatch[0].length + triggerPos;
-  const to = cursor.ch + rMatch[0].length;
-
-  return { refText, from, to };
+  const fullRefRe = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)/g;
+  let m;
+  while ((m = fullRefRe.exec(line)) !== null) {
+    const refEnd = m.index + m[0].length;
+    if (cursor.ch >= m.index && cursor.ch <= refEnd) {
+      const refText = m[2] + " " + m[3];
+      const triggerPos = m[0].indexOf(m[1]);
+      return { refText, from: m.index + triggerPos, to: refEnd };
+    }
+  }
+  return null;
 }
 
 /**
@@ -147,22 +139,21 @@ function makeExpandHandler(settings: BibleStudySettings) {
   }
 
   // 步骤1：光标在 -ref 内或后面
-  const tMatch = before.match(TRIGGER_BOOK_RE);
-  if (tMatch) {
-    const bookName = tMatch[2];
-    const after = fullLine.slice(posInLine);
-    const rMatch = after.match(REF_PART_RE)!;
-    const refPart = rMatch[1].trim();
-    const refText = bookName + (refPart ? " " + refPart : "");
-    const refs = parseMultiReference(refText);
-    if (refs.length > 0) {
-      const label = formatMultiLabel(refs);
-      const triggerPos = tMatch[0].indexOf(tMatch[1]);
-      const from = line.from + posInLine - tMatch[0].length + triggerPos;
-      const to = line.from + posInLine + rMatch[0].length;
-      view.dispatch({ changes: { from, to, insert: `*${label}*` } });
-      new Notice(label);
-      return true;
+  const fullRefRe = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)/g;
+  let refM;
+  while ((refM = fullRefRe.exec(fullLine)) !== null) {
+    const refEnd = refM.index + refM[0].length;
+    if (posInLine >= refM.index && posInLine <= refEnd) {
+      const refText = refM[2] + " " + refM[3];
+      const refs = parseMultiReference(refText);
+      if (refs.length > 0) {
+        const label = formatMultiLabel(refs);
+        const triggerPos = refM[0].indexOf(refM[1]);
+        const from = line.from + refM.index + triggerPos;
+        view.dispatch({ changes: { from, to: line.from + refEnd, insert: `*${label}*` } });
+        new Notice(label);
+        return true;
+      }
     }
   }
 

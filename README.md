@@ -17,7 +17,7 @@
 
 ### 内联引用
 
-输入 `-书卷 章:节`（或 `！书卷 章:节`），两步操作：
+输入 `-书卷 章:节`（或 `！书卷 章:节`），光标可以在引用内任意位置，按 Tab/Enter 展开：
 
 | 操作 | 效果 |
 |------|------|
@@ -29,8 +29,9 @@
 
 ```
 -约3:16                  → *约翰福音 3:16*
--约 3:16                 → *约翰福音 3:16*
--约3:16,3:17-18,4:1      → *约翰福音 3:16, 3:17-18, 4:1*
+-约 3:16                 → *约翰福音 3:16*（空格分隔）
+-约3:16,3:17-18,4:1      → *约翰福音 3:16, 3:17-18, 4:1*（多段引用）
+-约 5 5 6                → *约翰福音 5:5-6*（空格三段式）
 -yh 3:16                 → 拼音首字母
 -jhn 3:16                → 英文缩写
 ！约3:16                 → 手机触发符
@@ -63,8 +64,6 @@
 ### 社区插件（推荐）
 
 在 Obsidian 设置 → 第三方插件 → 浏览 → 搜索 "Bible Study" 安装。
-
-> 首次使用时，打开阅读面板点击「下载圣经数据」按钮，插件会从 GitHub 下载圣经数据（约 3.7MB），下载后永久缓存本地。下载进度会实时显示。
 
 ### 手动安装
 
@@ -154,7 +153,7 @@ Obsidian → Settings → Community Plugins → Browse → "Bible Study".
 
 ## Bible Data
 
-On first use, open the reading panel and click "Download Bible Data" (~3.7MB). Download progress is shown in real time. Cached locally afterwards.
+The plugin bundles complete CUV Bible data (compressed, ~1.1MB). No network needed after installation.
 
 ## Development
 

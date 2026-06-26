@@ -1,30 +1,12 @@
 import { BookData, ChapterData, VerseData } from "./types";
-import { BIBLE_DATA_BASE64 } from "./bible-data-bundle";
+import { BIBLE_DATA } from "./bible-data-bundle";
 
 const dataCache: Map<string, BookData> = new Map();
 let _ready = false;
 
-function decodeBase64(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
-}
-
-async function decompress(bytes: Uint8Array): Promise<string> {
-  const blob = new Blob([bytes.buffer as ArrayBuffer]);
-  const ds = new DecompressionStream("gzip");
-  const stream = blob.stream().pipeThrough(ds);
-  return new Response(stream).text();
-}
-
-function parseCompact(raw: string): void {
-  // Compact format: { bookId: [bookId, bookName, [[chNum, [vTexts...]], ...]] }
-  const compact = JSON.parse(raw) as Record<string, [string, string, Array<[number, string[]]>]>;
-
-  for (const [bookId, bookData] of Object.entries(compact)) {
+function parseCompact(): void {
+  // Compact format: { bookId: [bookId, bookName, [[chNum, [null, vText...]], ...]] }
+  for (const [bookId, bookData] of Object.entries(BIBLE_DATA)) {
     const bookName = bookData[1];
     const chArr = bookData[2];
 
@@ -47,20 +29,10 @@ function parseCompact(raw: string): void {
   _ready = true;
 }
 
-let _initPromise: Promise<void> | null = null;
-
-/** Initialize — decompress and parse bundled data */
-export function initBibleData(): Promise<void> {
-  if (_ready) return Promise.resolve();
-  if (_initPromise) return _initPromise;
-
-  _initPromise = (async () => {
-    const bytes = decodeBase64(BIBLE_DATA_BASE64);
-    const json = await decompress(bytes);
-    parseCompact(json);
-  })();
-
-  return _initPromise;
+/** Initialize — parse bundled data (synchronous) */
+export function initBibleData(): void {
+  if (_ready) return;
+  parseCompact();
 }
 
 export function isDataReady(): boolean {
