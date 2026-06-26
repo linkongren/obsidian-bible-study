@@ -31,7 +31,8 @@ function loadMultiVerses(settings: BibleStudySettings, refs: BibleReference[]): 
 }
 
 /** -ref 模式：捕获 -书卷 后面的全部内容，交给 parseMultiReference 解析 */
-const REF_TRIGGER_RE = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)$/;
+const TRIGGER_BOOK_RE = /([-！])([一-鿿a-zA-Z]+)\s*$/;
+const REF_PART_RE = /^([\d：:\s,，\-–—]*)/;
 
 /**
  * 从编辑器光标向前查找 -ref 模式
@@ -40,11 +41,21 @@ function findTriggerRef(editor: Editor): { refText: string; from: number; to: nu
   const cursor = editor.getCursor();
   const line = editor.getLine(cursor.line);
   const before = line.slice(0, cursor.ch);
-  const match = before.match(REF_TRIGGER_RE);
-  if (!match) return null;
-  const refText = match[2] + " " + match[3];
-  const triggerPos = match[0].indexOf(match[1]);
-  return { refText, from: cursor.ch - match[0].length + triggerPos, to: cursor.ch };
+  const after = line.slice(cursor.ch);
+
+  const tMatch = before.match(TRIGGER_BOOK_RE);
+  if (!tMatch) return null;
+
+  const bookName = tMatch[2];
+  const rMatch = after.match(REF_PART_RE)!;
+  const refPart = rMatch[1].trim();
+  const refText = bookName + (refPart ? " " + refPart : "");
+
+  const triggerPos = tMatch[0].indexOf(tMatch[1]);
+  const from = cursor.ch - tMatch[0].length + triggerPos;
+  const to = cursor.ch + rMatch[0].length;
+
+  return { refText, from, to };
 }
 
 /**
@@ -135,16 +146,22 @@ function makeExpandHandler(settings: BibleStudySettings) {
     }
   }
 
-  // 步骤1：光标前是 -ref，替换为 [标准引用]
-  const refMatch = before.match(REF_TRIGGER_RE);
-  if (refMatch) {
-    const refText = refMatch[2] + " " + refMatch[3];
+  // 步骤1：光标在 -ref 内或后面
+  const tMatch = before.match(TRIGGER_BOOK_RE);
+  if (tMatch) {
+    const bookName = tMatch[2];
+    const after = fullLine.slice(posInLine);
+    const rMatch = after.match(REF_PART_RE)!;
+    const refPart = rMatch[1].trim();
+    const refText = bookName + (refPart ? " " + refPart : "");
     const refs = parseMultiReference(refText);
     if (refs.length > 0) {
       const label = formatMultiLabel(refs);
-      const triggerPos = refMatch[0].indexOf(refMatch[1]);
-      const from = line.from + refMatch.index! + triggerPos;
-      view.dispatch({ changes: { from, to: pos, insert: `*${label}*` } });
+      const triggerPos = tMatch[0].indexOf(tMatch[1]);
+      const from = line.from + posInLine - tMatch[0].length + triggerPos;
+      const to = line.from + posInLine + rMatch[0].length;
+      view.dispatch({ changes: { from, to, insert: `*${label}*` } });
+      new Notice(label);
       return true;
     }
   }
