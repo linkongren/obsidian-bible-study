@@ -1,83 +1,75 @@
-import { requestUrl } from "obsidian";
 import { BookData, ChapterData, VerseData } from "./types";
-
-interface VaultAdapter {
-  read(path: string): Promise<string>;
-  exists(path: string): Promise<boolean>;
-  write(path: string, data: string): Promise<void>;
-}
+import { BIBLE_DATA_BASE64 } from "./bible-data-bundle";
 
 const dataCache: Map<string, BookData> = new Map();
-let _adapter: VaultAdapter | null = null;
-let _pluginDir: string | null = null;
+let _ready = false;
 
-const API_URL = "https://cdn.jsdelivr.net/gh/linkongren/obsidian-bible-study@master/bible-data.json";
-
-/** Initialize — only checks local cache, does NOT auto-download */
-export async function initBibleData(adapter: VaultAdapter, pluginDir: string): Promise<void> {
-  _adapter = adapter;
-  _pluginDir = pluginDir;
-
-  const filePath = pluginDir + "bible-data.json";
-  if (await adapter.exists(filePath)) {
-    await loadFromFile(filePath);
+function decodeBase64(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
+  return bytes;
 }
 
-/** Download Bible data (manual trigger) */
-export async function downloadBibleData(
-  onProgress: (msg: string, done: boolean) => void
-): Promise<boolean> {
-  const filePath = _pluginDir + "bible-data.json";
-
-  // Already loaded
-  if (dataCache.size > 0) {
-    onProgress("圣经数据已就绪", true);
-    return true;
-  }
-
-  onProgress("正在下载圣经数据...", false);
-  try {
-    const resp = await requestUrl({ url: API_URL });
-    if (resp.status !== 200) throw new Error(`HTTP ${resp.status}`);
-    const text = resp.text;
-    if (_adapter) await _adapter.write(filePath, text);
-    await loadFromFile(filePath);
-    const mb = (text.length / 1024 / 1024).toFixed(1);
-    onProgress(`下载完成 (${mb}MB)`, true);
-    return true;
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    onProgress(`下载失败: ${msg}`, true);
-    return false;
-  }
+async function decompress(bytes: Uint8Array): Promise<string> {
+  const blob = new Blob([bytes.buffer as ArrayBuffer]);
+  const ds = new DecompressionStream("gzip");
+  const stream = blob.stream().pipeThrough(ds);
+  return new Response(stream).text();
 }
 
-/** Check if data is ready */
+function parseCompact(raw: string): void {
+  // Compact format: { bookId: [bookId, bookName, [[chNum, [vTexts...]], ...]] }
+  const compact = JSON.parse(raw) as Record<string, [string, string, Array<[number, string[]]>]>;
+
+  for (const [bookId, bookData] of Object.entries(compact)) {
+    const bookName = bookData[1];
+    const chArr = bookData[2];
+
+    const chapters: ChapterData[] = chArr.map(([chNum, vArr]) => {
+      const verses: VerseData[] = [];
+      for (let i = 1; i < vArr.length; i++) {
+        if (vArr[i]) {
+          verses.push({ verse: i, text: vArr[i] });
+        }
+      }
+      return { chapter: chNum, verses };
+    });
+
+    dataCache.set(`cuv/${bookId}`, {
+      book: bookName,
+      bookId,
+      chapters,
+    });
+  }
+  _ready = true;
+}
+
+let _initPromise: Promise<void> | null = null;
+
+/** Initialize — decompress and parse bundled data */
+export function initBibleData(): Promise<void> {
+  if (_ready) return Promise.resolve();
+  if (_initPromise) return _initPromise;
+
+  _initPromise = (async () => {
+    const bytes = decodeBase64(BIBLE_DATA_BASE64);
+    const json = await decompress(bytes);
+    parseCompact(json);
+  })();
+
+  return _initPromise;
+}
+
 export function isDataReady(): boolean {
-  return dataCache.size > 0;
-}
-
-async function loadFromFile(filePath: string): Promise<boolean> {
-  try {
-    const raw = await _adapter!.read(filePath);
-    const all = JSON.parse(raw) as Record<string, BookData>;
-    dataCache.clear();
-    for (const [id, book] of Object.entries(all)) {
-      dataCache.set(`cuv/${id}`, book);
-    }
-    return true;
-  } catch {
-    return false;
-  }
+  return _ready;
 }
 
 export function loadBook(version: string, bookId: string): BookData | null {
   const cacheKey = `${version}/${bookId}`;
-  if (dataCache.has(cacheKey)) {
-    return dataCache.get(cacheKey)!;
-  }
-  return null;
+  return dataCache.get(cacheKey) ?? null;
 }
 
 export function getChapter(bookData: BookData, chapter: number): ChapterData | null {
@@ -99,14 +91,6 @@ export function getVerses(bookData: BookData, chapter: number, startVerse: numbe
   return ch.verses.filter(v => v.verse === startVerse);
 }
 
-export function formatVerseDisplay(verses: VerseData[], options: { showNumbers?: boolean; format?: 'full' | 'short' } = {}): string {
-  const { showNumbers = true, format = 'full' } = options;
-  return verses.map(v => {
-    if (showNumbers) return `**${v.verse}** ${v.text}`;
-    return v.text;
-  }).join(format === 'full' ? '\n\n' : ' ');
-}
-
 export function formatVersePlain(bookName: string, chapter: number, verses: VerseData[]): string {
   const lines = verses.map(v => `〔${v.verse}〕${v.text}`);
   const heading = `> **${bookName} ${chapter}:${verses[0].verse}${verses.length > 1 ? `-${verses[verses.length - 1].verse}` : ""}**`;
@@ -115,4 +99,5 @@ export function formatVersePlain(bookName: string, chapter: number, verses: Vers
 
 export function clearCache(): void {
   dataCache.clear();
+  _ready = false;
 }

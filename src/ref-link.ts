@@ -27,10 +27,12 @@ export function createRefLinkExtension(
           TRIGGER_LINK_RE.lastIndex = 0;
           let match: RegExpExecArray | null;
           while ((match = TRIGGER_LINK_RE.exec(text)) !== null) {
+            const refText = match[2] + " " + match[3];
+            if (parseMultiReference(refText).length === 0) continue;
             decorations.push({
               from: range.from + match.index!,
               to: range.from + match.index! + match[0].length,
-              value: Decoration.mark({ class: LINK_CLASS, attributes: { "data-bible-ref": match[2] + " " + match[3], "title": "" } }),
+              value: Decoration.mark({ class: LINK_CLASS, attributes: { "data-bible-ref": refText, "title": "" } }),
             });
           }
 

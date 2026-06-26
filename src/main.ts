@@ -7,7 +7,7 @@ import { BibleStudySettings, DEFAULT_SETTINGS } from "./types";
 import { BibleStudySettingTab } from "./settings";
 import { ReferenceModal, parseReference, parseMultiReference } from "./reference-modal";
 import { BibleReadingView, BIBLE_VIEW_TYPE } from "./bible-view";
-import { clearCache, loadBook, getVerses, initBibleData } from "./bible-data";
+import { clearCache, initBibleData } from "./bible-data";
 import { doExpand, createTabExpandExtension } from "./inline-expand";
 import { createRefLinkExtension } from "./ref-link";
 import type { VerseData } from "./types";
@@ -19,9 +19,8 @@ export default class BibleStudyPlugin extends Plugin {
     await this.loadSettings();
     this.addSettingTab(new BibleStudySettingTab(this.app, this));
 
-    // 初始化圣经数据（优先从本地加载，否则后台下载）
-    const pluginDir = `${this.app.vault.configDir}/plugins/${this.manifest.id}/`;
-    void initBibleData(this.app.vault.adapter, pluginDir);
+    // 初始化圣经数据（解压内置数据）
+    await initBibleData();
 
     this.registerView(BIBLE_VIEW_TYPE, (leaf) => new BibleReadingView(leaf, this.settings));
     this.addRibbonIcon("book-open", "切换圣经阅读面板", () => { void this.toggleView(); });
