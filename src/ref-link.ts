@@ -3,7 +3,7 @@ import { parseMultiReference } from "./reference-modal";
 
 const LINK_CLASS = "bible-ref-link";
 
-const TRIGGER_LINK_RE = /(?:^|[\s([{（【『「])([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)/g;
+const TRIGGER_LINK_RE = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)/g;
 const STAR_LINK_RE = /\*([^*]+)\*/g;
 
 export function createRefLinkExtension(

@@ -31,7 +31,7 @@ function loadMultiVerses(settings: BibleStudySettings, refs: BibleReference[]): 
 }
 
 /** -ref 模式：捕获 -书卷 后面的全部内容，交给 parseMultiReference 解析 */
-const REF_TRIGGER_RE = /(?:^|[\s([{（【『「])([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)$/;
+const REF_TRIGGER_RE = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)$/;
 
 /**
  * 从编辑器光标向前查找 -ref 模式
