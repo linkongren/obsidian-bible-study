@@ -5,7 +5,7 @@ import {
 } from "obsidian";
 import { BookMeta, BibleStudySettings, ChapterData } from "./types";
 import { BOOKS } from "./book-names";
-import { loadBook, getChapter as getChapterData } from "./bible-data";
+import { loadBook, getChapter as getChapterData, isDataReady, downloadBibleData } from "./bible-data";
 
 export const BIBLE_VIEW_TYPE = "bible-reading-view";
 
@@ -245,10 +245,37 @@ export class BibleReadingView extends ItemView {
       chapterSelect.value = String(this.currentChapter);
     }
 
+    if (!isDataReady()) {
+      const noData = contentArea.createEl("div", { cls: "bible-no-data" });
+      noData.createEl("h3", { text: "未下载圣经数据" });
+      noData.createEl("p", { text: "首次使用需要下载圣经数据（约 3.7MB），下载后永久缓存。" });
+      const dlBtn = noData.createEl("button", { text: "下载圣经数据" });
+      const statusEl = noData.createEl("p", { cls: "bible-download-status" });
+      dlBtn.addEventListener("click", async () => {
+        dlBtn.disabled = true;
+        dlBtn.textContent = "下载中...";
+        await downloadBibleData((msg, done) => {
+          statusEl.textContent = msg;
+          if (done) {
+            dlBtn.textContent = done ? "下载完成" : "重试";
+            dlBtn.disabled = !done;
+            if (msg.includes("完成") || msg.includes("就绪")) {
+              this.renderContent(container);
+            }
+          }
+        });
+        if (!isDataReady()) {
+          dlBtn.textContent = "重新下载";
+          dlBtn.disabled = false;
+        }
+      });
+      return;
+    }
+
     if (this.bookData.length === 0) {
       const noData = contentArea.createEl("div", { cls: "bible-no-data" });
       noData.createEl("h3", { text: "暂无圣经数据" });
-      noData.createEl("p", { text: "请重新安装插件以获取圣经数据。" });
+      noData.createEl("p", { text: "请点击上方按钮下载圣经数据。" });
       return;
     }
 

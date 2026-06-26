@@ -64,6 +64,8 @@
 
 在 Obsidian 设置 → 第三方插件 → 浏览 → 搜索 "Bible Study" 安装。
 
+> 首次使用时，打开阅读面板点击「下载圣经数据」按钮，插件会从 GitHub 下载圣经数据（约 3.7MB），下载后永久缓存本地。下载进度会实时显示。
+
 ### 手动安装
 
 1. 下载 [最新 Release](https://github.com/linkongren/obsidian-bible-study/releases)
@@ -152,7 +154,7 @@ Obsidian → Settings → Community Plugins → Browse → "Bible Study".
 
 ## Bible Data
 
-The plugin downloads Bible data (~3.7MB) on first use from the GitHub Release. Cached locally afterwards.
+On first use, open the reading panel and click "Download Bible Data" (~3.7MB). Download progress is shown in real time. Cached locally afterwards.
 
 ## Development
 

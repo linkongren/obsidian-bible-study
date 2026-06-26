@@ -1,5 +1,4 @@
 import { BookData, ChapterData, VerseData } from "./types";
-import { Notice } from "obsidian";
 
 interface VaultAdapter {
   read(path: string): Promise<string>;
@@ -10,44 +9,69 @@ interface VaultAdapter {
 const dataCache: Map<string, BookData> = new Map();
 let _adapter: VaultAdapter | null = null;
 let _pluginDir: string | null = null;
-let _downloadStarted = false;
-let _downloadPromise: Promise<boolean> | null = null;
 
 const DATA_URL = "https://github.com/linkongren/obsidian-bible-study/releases/latest/download/bible-data.json";
 
-export function initBibleData(adapter: VaultAdapter, pluginDir: string): Promise<boolean> {
+/** Initialize — only checks local cache, does NOT auto-download */
+export async function initBibleData(adapter: VaultAdapter, pluginDir: string): Promise<void> {
   _adapter = adapter;
   _pluginDir = pluginDir;
 
-  if (_downloadPromise) return _downloadPromise;
-  _downloadPromise = doInit();
-  return _downloadPromise;
+  const filePath = pluginDir + "bible-data.json";
+  if (await adapter.exists(filePath)) {
+    await loadFromFile(filePath);
+  }
 }
 
-async function doInit(): Promise<boolean> {
-  if (_downloadStarted) return true;
-  _downloadStarted = true;
-
+/** Download Bible data (manual trigger) */
+export async function downloadBibleData(
+  onProgress: (msg: string, done: boolean) => void
+): Promise<boolean> {
   const filePath = _pluginDir + "bible-data.json";
 
-  // Check if data file exists locally
-  if (_adapter && await _adapter.exists(filePath)) {
-    return loadFromFile(filePath);
+  // Already loaded
+  if (dataCache.size > 0) {
+    onProgress("圣经数据已就绪", true);
+    return true;
   }
 
-  // Download from GitHub Release
-  new Notice("正在下载圣经数据（仅首次需要）...");
+  onProgress("正在下载圣经数据...", false);
   try {
     const resp = await fetch(DATA_URL);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const text = await resp.text();
+    const total = Number(resp.headers.get("content-length") || 0);
+    const reader = resp.body!.getReader();
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      received += value.length;
+      if (total > 0) {
+        const pct = Math.round((received / total) * 100);
+        onProgress(`正在下载圣经数据 ${pct}%...`, false);
+      }
+    }
+
+    const text = new TextDecoder().decode(
+      chunks.reduce((acc, c) => { const t = new Uint8Array(acc.length + c.length); t.set(acc); t.set(c, acc.length); return t; }, new Uint8Array(0))
+    );
+
     if (_adapter) await _adapter.write(filePath, text);
-    new Notice("圣经数据下载完成");
-    return loadFromFile(filePath);
+    await loadFromFile(filePath);
+    onProgress(`圣经数据下载完成 (${(received / 1024 / 1024).toFixed(1)}MB)`, true);
+    return true;
   } catch {
-    new Notice("圣经数据下载失败，请检查网络后重新加载");
+    onProgress("下载失败，请检查网络", true);
     return false;
   }
+}
+
+/** Check if data is ready */
+export function isDataReady(): boolean {
+  return dataCache.size > 0;
 }
 
 async function loadFromFile(filePath: string): Promise<boolean> {
@@ -64,7 +88,6 @@ async function loadFromFile(filePath: string): Promise<boolean> {
   }
 }
 
-/** Get book data (synchronous) */
 export function loadBook(version: string, bookId: string): BookData | null {
   const cacheKey = `${version}/${bookId}`;
   if (dataCache.has(cacheKey)) {

@@ -266,3 +266,30 @@
   font-size: 13px;
   max-width: 280px;
 }
+
+.bible-no-data button {
+  margin: 12px 0;
+  padding: 8px 24px;
+  border-radius: 4px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.bible-no-data button:hover {
+  background: var(--interactive-accent-hover);
+}
+
+.bible-no-data button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.bible-download-status {
+  margin-top: 8px;
+  font-size: 12px !important;
+  color: var(--text-muted);
+}
