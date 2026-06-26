@@ -19,8 +19,8 @@ export default class BibleStudyPlugin extends Plugin {
     await this.loadSettings();
     this.addSettingTab(new BibleStudySettingTab(this.app, this));
 
-    // 初始化圣经数据
-    initBibleData();
+    // 初始化圣经数据（解压内置数据）
+    await initBibleData();
 
     this.registerView(BIBLE_VIEW_TYPE, (leaf) => new BibleReadingView(leaf, this.settings));
     this.addRibbonIcon("book-open", "切换圣经阅读面板", () => { void this.toggleView(); });
