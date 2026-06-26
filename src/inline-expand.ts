@@ -110,9 +110,12 @@ function endVerseLabel(ref: { bookName: string; chapter: number; startVerse: num
   return `${ref.bookName} ${ref.chapter}:${ref.startVerse}${ref.endVerse ? `-${ref.endVerse}` : ''}`;
 }
 
-/** Tab/Enter 展开处理逻辑 */
-function makeExpandHandler(settings: BibleStudySettings) {
+/** Tab/Enter 展开处理逻辑，动态读取设置 */
+function makeExpandHandler(getSettings: () => BibleStudySettings) {
   return (view: EditorView): boolean => {
+  const settings = getSettings();
+  if (!settings.inlineExpandEnabled) return false;
+
   const pos = view.state.selection.main.head;
   const line = view.state.doc.lineAt(pos);
   const before = line.text.slice(0, pos - line.from);
@@ -161,11 +164,10 @@ function makeExpandHandler(settings: BibleStudySettings) {
   };
 }
 
-export function createTabExpandExtension(settings: BibleStudySettings) {
-  const handler = makeExpandHandler(settings);
-  const keys: { key: string; run: ReturnType<typeof makeExpandHandler> }[] = [];
-  if (settings.expandKey === "tab" || settings.expandKey === "both") keys.push({ key: "Tab", run: handler });
-  if (settings.expandKey === "enter" || settings.expandKey === "both") keys.push({ key: "Enter", run: handler });
-
-  return Prec.highest(keymap.of(keys));
+export function createTabExpandExtension(getSettings: () => BibleStudySettings) {
+  const handler = makeExpandHandler(getSettings);
+  return Prec.highest(keymap.of([
+    { key: "Tab", run: handler },
+    { key: "Enter", run: handler },
+  ]));
 }

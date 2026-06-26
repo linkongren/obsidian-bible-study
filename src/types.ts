@@ -54,7 +54,7 @@ export const DEFAULT_SETTINGS: BibleStudySettings = {
   showVerseNumbers: true,
   fontSize: 14,
   inlineExpandEnabled: true,
-  expandKey: 'tab',
+  expandKey: 'both',
   readingClickEnabled: true,
 };
 

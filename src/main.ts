@@ -25,9 +25,7 @@ export default class BibleStudyPlugin extends Plugin {
     this.registerView(BIBLE_VIEW_TYPE, (leaf) => new BibleReadingView(leaf, this.settings));
     this.addRibbonIcon("book-open", "切换圣经阅读面板", () => { void this.toggleView(); });
 
-    if (this.settings.inlineExpandEnabled) {
-      this.registerEditorExtension(createTabExpandExtension(this.settings));
-    }
+    this.registerEditorExtension(createTabExpandExtension(() => this.settings));
 
     this.registerEditorExtension(createRefLinkExtension((refText: string) => { void this.navigateToRef(refText); }));
 
