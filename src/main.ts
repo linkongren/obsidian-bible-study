@@ -47,7 +47,7 @@ export default class BibleStudyPlugin extends Plugin {
     this.addCommand({ id: "lookup-selected-reference", name: "查找选中的经文引用", callback: () => { void this.lookupSelectedReference(); } });
   }
 
-  onunload() { this.app.workspace.detachLeavesOfType(BIBLE_VIEW_TYPE); }
+  onunload() {}
 
   async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
   async saveSettings() { await this.saveData(this.settings); this.updateViews(); }
