@@ -37,12 +37,16 @@ export interface BookMeta {
   pinyinAbbr: string; // 拼音首字母，如 "yhfy"
 }
 
+/** 阅读面板主题 */
+export type ReadingTheme = 'paper' | 'eyecare' | 'night' | 'parchment' | 'minimal';
+
 /** 插件设置 */
 export interface BibleStudySettings {
   defaultVersion: string;
   verseFormat: 'full' | 'short';
   showVerseNumbers: boolean;
   fontSize: number;
+  readingTheme: ReadingTheme;
   inlineExpandEnabled: boolean;
   expandKey: 'tab' | 'enter' | 'both';
   readingClickEnabled: boolean;
@@ -53,6 +57,7 @@ export const DEFAULT_SETTINGS: BibleStudySettings = {
   verseFormat: 'full',
   showVerseNumbers: true,
   fontSize: 14,
+  readingTheme: 'paper',
   inlineExpandEnabled: true,
   expandKey: 'both',
   readingClickEnabled: true,

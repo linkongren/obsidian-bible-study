@@ -3,22 +3,61 @@ import {
   WorkspaceLeaf,
   Notice,
 } from "obsidian";
-import { BookMeta, BibleStudySettings, ChapterData } from "./types";
+import { BookMeta, BibleStudySettings, ChapterData, ReadingTheme } from "./types";
+import type BibleStudyPlugin from "./main";
 import { BOOKS } from "./book-names";
 import { loadBook, getChapter as getChapterData, isDataReady } from "./bible-data";
 
 export const BIBLE_VIEW_TYPE = "bible-reading-view";
 
+/** 阅读主题配色（JS 直接应用，确保在深色 Obsidian 下也能生效） */
+const THEMES: Record<ReadingTheme, { bg: string; text: string; accent: string; headerBg: string; font: string }> = {
+  paper: { bg: "#faf6ef", text: "#3b3328", accent: "#8a6d3b", headerBg: "#f1eadd", font: '"Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif' },
+  eyecare: { bg: "#e8f5e9", text: "#2f4a3e", accent: "#4e7a54", headerBg: "#dcedd9", font: '"Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif' },
+  parchment: { bg: "#efe6d2", text: "#4a3b2a", accent: "#7a5c2e", headerBg: "#e5d7bd", font: '"Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", serif' },
+  night: { bg: "#20222a", text: "#d3cec0", accent: "#b8a36a", headerBg: "#2a2d37", font: '"Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif' },
+  minimal: { bg: "#f7f7f8", text: "#222222", accent: "#5a5a5a", headerBg: "#ececed", font: '"Microsoft YaHei", "PingFang SC", "Noto Sans SC", sans-serif' },
+};
+
+const THEME_OPTIONS: Array<[ReadingTheme, string]> = [
+  ["paper", "经典纸书"],
+  ["eyecare", "护眼绿"],
+  ["parchment", "羊皮纸"],
+  ["night", "夜间暗色"],
+  ["minimal", "极简灰"],
+];
+
+/** 把主题内联应用到面板（CSS 变量），保证在深色 Obsidian 下也生效 */
+function applyThemeTo(container: HTMLElement, theme: ReadingTheme, fontSize: number) {
+  const t = THEMES[theme] || THEMES.paper;
+  container.setAttr("data-theme", theme);
+  container.setAttr("style",
+    `--bible-font-size: ${fontSize}px;` +
+    `--bible-bg: ${t.bg};` +
+    `--bible-text: ${t.text};` +
+    `--bible-accent: ${t.accent};` +
+    `--bible-header-bg: ${t.headerBg};` +
+    `--bible-font: ${t.font};`);
+}
+
 export class BibleReadingView extends ItemView {
   private settings: BibleStudySettings;
+  private plugin: BibleStudyPlugin;
   private currentBook: BookMeta;
   private currentChapter: number = 1;
   private bookData: ChapterData[] = [];
-  private loadedBookId: string = "";
+  private loadedKey: string = "";
+  private targetVerse: number | undefined;
+  private rendered = false;
+  private _closeObserver: MutationObserver | null = null;
+  private keyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private currentPicker: HTMLElement | null = null;
+  private pickerDocHandler: ((e: MouseEvent) => void) | null = null;
 
-  constructor(leaf: WorkspaceLeaf, settings: BibleStudySettings) {
+  constructor(leaf: WorkspaceLeaf, settings: BibleStudySettings, plugin: BibleStudyPlugin) {
     super(leaf);
     this.settings = settings;
+    this.plugin = plugin;
     this.currentBook = BOOKS.find(b => b.id === "jhn") || BOOKS[0];
   }
 
@@ -34,8 +73,6 @@ export class BibleReadingView extends ItemView {
     return "book-open";
   }
 
-  private targetVerse: number | undefined;
-
   async navigateTo(bookId: string, chapter: number, verse?: number) {
     const book = BOOKS.find(b => b.id === bookId);
     if (!book) return;
@@ -43,111 +80,72 @@ export class BibleReadingView extends ItemView {
     this.currentBook = book;
     this.currentChapter = Math.min(chapter, book.chapters);
     this.targetVerse = verse;
-    this.loadedBookId = "";
-    await this.loadCurrentChapter();
+    this.loadedKey = "";
 
-    const container = this.containerEl.children[1] as HTMLElement;
-    const bookSelect = container.querySelector(".bible-book-select") as HTMLSelectElement;
-    if (bookSelect) bookSelect.value = bookId;
-    const chSelect = container.querySelector(".chapter-select") as HTMLSelectElement;
-    if (chSelect) {
-      chSelect.empty();
-      for (let c = 1; c <= book.chapters; c++) {
-        const opt = chSelect.createEl("option");
-        opt.value = String(c);
-        opt.textContent = `第 ${c} 章`;
-      }
-      chSelect.value = String(this.currentChapter);
-    }
-    this.renderContent(container);
+    // 视图尚未渲染时（首次打开），由 onOpen 的渲染统一消费 targetVerse
+    if (!this.rendered) return;
+
+    this.loadCurrentChapter();
+    this.renderContent(this.contentEl);
   }
 
   async onOpen() {
-    const container = this.containerEl.children[1] as HTMLElement;
+    const container = this.contentEl;
     container.empty();
     container.addClass("bible-reading-panel");
-    container.setAttr("style", `--bible-font-size: ${this.settings.fontSize}px;`);
+    applyThemeTo(container, this.settings.readingTheme, this.settings.fontSize);
+    this.setupCloseButtonRemoval();
+    await this.render(container);
+  }
 
-    // 查找并移除属于本 leaf 的关闭按钮
+  /** 只移除 Obsidian 原生的面板关闭按钮（view-action），不动自定义 ✕ */
+  private setupCloseButtonRemoval() {
+    if (this._closeObserver) {
+      this._closeObserver.disconnect();
+      this._closeObserver = null;
+    }
     const removeCloseBtn = () => {
       const leafEl = this.containerEl.closest(".workspace-leaf");
       if (!leafEl) return;
-      const btns = leafEl.querySelectorAll("button, [aria-label]");
-      btns.forEach((btn: Element) => {
+      leafEl.querySelectorAll(".view-action[aria-label]").forEach((btn) => {
         const aria = btn.getAttribute("aria-label") || "";
-        const cls = (btn as HTMLElement).className || "";
-        if (aria === "Close" || aria === "关闭" || aria === "Close pane" || cls.includes("close") || cls.includes("view-action")) {
-          btn.remove();
-        }
+        if (aria === "Close" || aria === "关闭" || aria === "Close pane") btn.remove();
       });
     };
     removeCloseBtn();
-    // MutationObserver 应对 Obsidian 重新渲染
     const observer = new MutationObserver(() => removeCloseBtn());
     const leafEl = this.containerEl.closest(".workspace-leaf");
     if (leafEl) observer.observe(leafEl, { childList: true, subtree: true });
     this._closeObserver = observer;
+  }
 
-    await this.render(container);
+  /** 设置变更时刷新主题/字号/内容，不重建整个面板 */
+  refreshSettings() {
+    const container = this.contentEl;
+    applyThemeTo(container, this.settings.readingTheme, this.settings.fontSize);
+    this.refreshHeaderTheme(container);
+    this.loadCurrentChapter();
+    this.renderContent(container);
   }
 
   async render(container: HTMLElement) {
     container.empty();
-    const doc = container.ownerDocument;
 
     const header = container.createEl("div", { cls: "bible-reading-header" });
 
-    const closeBtn = header.createEl("button", { text: "✕", cls: "bible-reading-close" });
+    const closeBtn = header.createEl("button", { text: "✕", cls: "bible-panel-close" });
     closeBtn.setAttribute("aria-label", "关闭面板");
     closeBtn.addEventListener("click", () => {
       this.leaf.detach();
     });
 
-    const bookSelect = header.createEl("select", { cls: "bible-book-select" });
+    const theme = THEMES[this.settings.readingTheme] || THEMES.paper;
 
-    const oldGroup = doc.createElement("optgroup");
-    oldGroup.label = "── 旧约 ──";
-
-    const newGroup = doc.createElement("optgroup");
-    newGroup.label = "── 新约 ──";
-
-    for (const book of BOOKS) {
-      const option = doc.createElement("option");
-      option.value = book.id;
-      option.textContent = book.name;
-
-      if (book.testament === "old") {
-        oldGroup.appendChild(option);
-      } else {
-        newGroup.appendChild(option);
-      }
-
-      if (book.id === this.currentBook.id) {
-        option.selected = true;
-      }
-    }
-
-    bookSelect.appendChild(oldGroup);
-    bookSelect.appendChild(newGroup);
-
-    bookSelect.addEventListener("change", () => {
-      const book = BOOKS.find(b => b.id === bookSelect.value);
-      if (book) {
-        this.currentBook = book;
-        this.currentChapter = 1;
-        const chSelect = container.querySelector(".chapter-select") as HTMLSelectElement;
-        if (chSelect) {
-          chSelect.empty();
-          for (let c = 1; c <= book.chapters; c++) {
-            const opt = chSelect.createEl("option");
-            opt.value = String(c);
-            opt.textContent = `第 ${c} 章`;
-          }
-          chSelect.value = "1";
-        }
-        this.loadCurrentChapter();
-        this.renderContent(container);
-      }
+    const bookBtn = header.createEl("button", { text: this.currentBook.name, cls: "bible-book-btn" });
+    bookBtn.style.background = theme.bg;
+    bookBtn.style.color = theme.text;
+    bookBtn.addEventListener("click", () => {
+      this.openBookPicker(bookBtn);
     });
 
     const chapterNav = header.createEl("div", { cls: "chapter-nav" });
@@ -155,27 +153,11 @@ export class BibleReadingView extends ItemView {
     const prevBtn = chapterNav.createEl("button", { text: "◀" });
     prevBtn.setAttribute("aria-label", "上一章");
 
-    const chapterSelect = chapterNav.createEl("select", { cls: "chapter-select" });
-    chapterSelect.setAttribute("aria-label", "选择章节");
-
-    const populateChapters = () => {
-      chapterSelect.empty();
-      for (let c = 1; c <= this.currentBook.chapters; c++) {
-        const opt = chapterSelect.createEl("option");
-        opt.value = String(c);
-        opt.textContent = `第 ${c} 章`;
-      }
-      chapterSelect.value = String(this.currentChapter);
-    };
-    populateChapters();
-
-    chapterSelect.addEventListener("change", () => {
-      const newChapter = parseInt(chapterSelect.value, 10);
-      if (newChapter !== this.currentChapter) {
-        this.currentChapter = newChapter;
-        this.loadCurrentChapter();
-        this.renderContent(container);
-      }
+    const chapterBtn = chapterNav.createEl("button", { text: `第 ${this.currentChapter} 章`, cls: "chapter-btn" });
+    chapterBtn.style.background = theme.bg;
+    chapterBtn.style.color = theme.text;
+    chapterBtn.addEventListener("click", () => {
+      this.openChapterPicker(chapterBtn);
     });
 
     const nextBtn = chapterNav.createEl("button", { text: "▶" });
@@ -193,35 +175,189 @@ export class BibleReadingView extends ItemView {
     prevBtn.addEventListener("click", () => goToChapter(-1));
     nextBtn.addEventListener("click", () => goToChapter(1));
 
-    container.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "ArrowLeft") {
-        if (this.currentChapter > 1) {
-          this.currentChapter--;
-          this.loadCurrentChapter();
-          this.renderContent(container);
-        }
-      } else if (e.key === "ArrowRight") {
-        if (this.currentChapter < this.currentBook.chapters) {
-          this.currentChapter++;
-          this.loadCurrentChapter();
-          this.renderContent(container);
-        }
-      }
-    });
+    // 同一容器上的 keydown 监听只保留一个，避免重复叠加
+    if (this.keyHandler) container.removeEventListener("keydown", this.keyHandler);
+    this.keyHandler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") goToChapter(-1);
+      else if (e.key === "ArrowRight") goToChapter(1);
+    };
+    container.addEventListener("keydown", this.keyHandler);
 
-    const contentArea = container.createEl("div", { cls: "bible-verse-container" });
-    contentArea.setAttribute("id", "bible-content-area");
+    container.createEl("div", { cls: "bible-verse-container", attr: { id: "bible-content-area" } });
+
+    const footer = container.createEl("div", { cls: "bible-reading-footer" });
+    footer.createEl("span", { text: "主题", cls: "bible-footer-label" });
+    const themeSelect = footer.createEl("select", { cls: "bible-theme-select" });
+    themeSelect.setAttribute("aria-label", "阅读主题");
+    for (const [value, label] of THEME_OPTIONS) {
+      const opt = themeSelect.createEl("option");
+      opt.value = value;
+      opt.textContent = label;
+    }
+    themeSelect.value = this.settings.readingTheme;
+    themeSelect.addEventListener("change", () => {
+      this.settings.readingTheme = themeSelect.value as ReadingTheme;
+      applyThemeTo(container, this.settings.readingTheme, this.settings.fontSize);
+      this.refreshHeaderTheme(container);
+      void this.plugin.saveData(this.settings);
+    });
 
     this.loadCurrentChapter();
     this.renderContent(container);
+    this.rendered = true;
+  }
+
+  /** 主题切换时，同步刷新卷/章等持久按钮的内联颜色 */
+  private refreshHeaderTheme(container: HTMLElement) {
+    const t = THEMES[this.settings.readingTheme] || THEMES.paper;
+    const targets = [".bible-book-btn", ".chapter-btn", ".chapter-nav button"];
+    container.querySelectorAll(targets.join(",")).forEach((el) => {
+      const btn = el as HTMLElement;
+      btn.style.background = t.bg;
+      btn.style.color = t.text;
+    });
+  }
+
+  // ===== 卷/章多列选择器 =====
+
+  private closePicker() {
+    if (this.currentPicker) {
+      this.currentPicker.remove();
+      this.currentPicker = null;
+    }
+    if (this.pickerDocHandler) {
+      document.removeEventListener("mousedown", this.pickerDocHandler);
+      this.pickerDocHandler = null;
+    }
+  }
+
+  private openBookPicker(anchor: HTMLElement) {
+    const items: Array<{ label: string; value: string; group?: string }> = BOOKS.map(b => ({
+      label: b.name,
+      value: b.id,
+      group: b.testament === "old" ? "旧约" : "新约",
+    }));
+    this.openPicker(anchor, "books", items, (value) => {
+      const book = BOOKS.find(b => b.id === value);
+      if (!book) return;
+      this.currentBook = book;
+      this.currentChapter = 1;
+      anchor.setText(book.name);
+      const chBtn = this.contentEl.querySelector(".chapter-btn") as HTMLElement;
+      if (chBtn) chBtn.setText("第 1 章");
+      this.loadCurrentChapter();
+      this.renderContent(this.contentEl);
+    });
+  }
+
+  private openChapterPicker(anchor: HTMLElement) {
+    const items: Array<{ label: string; value: string }> = [];
+    for (let c = 1; c <= this.currentBook.chapters; c++) {
+      items.push({ label: String(c), value: String(c) });
+    }
+    this.openPicker(anchor, "chapters", items, (value) => {
+      const newChapter = parseInt(value, 10);
+      if (newChapter === this.currentChapter) return;
+      this.currentChapter = newChapter;
+      this.loadCurrentChapter();
+      this.renderContent(this.contentEl);
+    });
+  }
+
+  private openPicker(
+    anchor: HTMLElement,
+    gridCls: string,
+    items: Array<{ label: string; value: string; group?: string }>,
+    onPick: (value: string) => void
+  ) {
+    if (this.currentPicker) {
+      this.closePicker();
+      return;
+    }
+    const doc = this.contentEl.ownerDocument;
+    const picker = doc.body.createEl("div", { cls: "bible-picker" });
+    picker.setAttr("data-theme", this.settings.readingTheme);
+    // 直接从 THEMES 取当前主题，内联写死背景/文字色，确保生效
+    const t = THEMES[this.settings.readingTheme] || THEMES.paper;
+    picker.style.background = t.headerBg;
+    picker.style.color = t.text;
+    picker.style.setProperty("--bible-bg", t.bg);
+    picker.style.setProperty("--bible-text", t.text);
+    picker.style.setProperty("--bible-accent", t.accent);
+    picker.style.setProperty("--bible-header-bg", t.headerBg);
+    const grid = picker.createEl("div", { cls: `bible-picker-grid ${gridCls}` });
+
+    let lastGroup: string | undefined;
+    for (const item of items) {
+      if (item.group && item.group !== lastGroup) {
+        grid.createEl("div", { text: item.group, cls: "bible-picker-group" });
+        lastGroup = item.group;
+      }
+      const btn = grid.createEl("button", { text: item.label, cls: "bible-picker-item" });
+      btn.style.background = "transparent";
+      btn.style.color = t.text;
+      if (item.label.length >= 5) btn.addClass("bible-picker-item-long");
+      btn.addEventListener("mouseenter", () => {
+        btn.style.background = t.accent;
+        btn.style.color = t.bg;
+      });
+      btn.addEventListener("mouseleave", () => {
+        btn.style.background = "transparent";
+        btn.style.color = t.text;
+      });
+      btn.addEventListener("click", () => {
+        this.closePicker();
+        onPick(item.value);
+      });
+    }
+
+    const anchorRect = anchor.getBoundingClientRect();
+    const width = Math.min(gridCls === "books" ? 310 : 330, window.innerWidth - 16);
+    picker.style.position = "fixed";
+    picker.style.width = `${width}px`;
+    picker.style.left = `${Math.max(8, Math.min(anchorRect.left, window.innerWidth - width - 8))}px`;
+
+    const spaceBelow = window.innerHeight - anchorRect.bottom;
+    const spaceAbove = anchorRect.top;
+
+    if (gridCls === "books") {
+      picker.style.top = `${anchorRect.bottom + 4}px`;
+      picker.style.maxHeight = "90vh";
+      picker.style.overflowY = "auto";
+    } else if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
+      picker.style.top = `${anchorRect.bottom + 4}px`;
+      picker.style.maxHeight = `${Math.max(120, spaceBelow - 8)}px`;
+      picker.style.overflowY = "auto";
+    } else {
+      picker.style.bottom = `${window.innerHeight - anchorRect.top + 4}px`;
+      picker.style.maxHeight = `${Math.max(120, spaceAbove - 8)}px`;
+      picker.style.overflowY = "auto";
+    }
+
+    this.currentPicker = picker;
+
+    const onDocDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (this.currentPicker && !this.currentPicker.contains(target) && !anchor.contains(target)) {
+        this.closePicker();
+      }
+    };
+    this.pickerDocHandler = onDocDown;
+    document.addEventListener("mousedown", onDocDown);
+    picker.setAttr("tabindex", "-1");
+    picker.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") this.closePicker();
+    });
+    picker.focus();
   }
 
   private loadCurrentChapter(): void {
-    if (this.loadedBookId !== this.currentBook.id) {
+    const key = `${this.settings.defaultVersion}/${this.currentBook.id}`;
+    if (this.loadedKey !== key) {
       const data = loadBook(this.settings.defaultVersion, this.currentBook.id);
       if (data) {
         this.bookData = data.chapters;
-        this.loadedBookId = this.currentBook.id;
+        this.loadedKey = key;
       } else {
         this.bookData = [];
       }
@@ -240,10 +376,10 @@ export class BibleReadingView extends ItemView {
       }
     }
 
-    const chapterSelect = container.querySelector(".chapter-select") as HTMLSelectElement;
-    if (chapterSelect) {
-      chapterSelect.value = String(this.currentChapter);
-    }
+    const chBtn = container.querySelector(".chapter-btn") as HTMLElement;
+    if (chBtn) chBtn.setText(`第 ${this.currentChapter} 章`);
+    const bookBtn = container.querySelector(".bible-book-btn") as HTMLElement;
+    if (bookBtn) bookBtn.setText(this.currentBook.name);
 
     if (!isDataReady() || this.bookData.length === 0) {
       const noData = contentArea.createEl("div", { cls: "bible-no-data" });
@@ -277,27 +413,18 @@ export class BibleReadingView extends ItemView {
         cls: "verse-text",
       });
 
-      verseEl.addEventListener("click", () => {
-        const editor = this.app.workspace.activeEditor?.editor;
-        const text = `${this.currentBook.name} ${this.currentChapter}:${verse.verse}  ${verse.text}`;
-        if (editor) {
-          const citation = `> **${this.currentBook.name} ${this.currentChapter}:${verse.verse}**\n> ${verse.text}\n`;
-          editor.replaceSelection(citation);
-          new Notice(`已插入 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
-        } else {
-          navigator.clipboard.writeText(text).then(() => {
-            new Notice(`已复制 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
-          });
-        }
-      });
-
       verseEl.setAttribute("data-verse", String(verse.verse));
 
+      // 双击复制整节（单击不拦截，保证可部分选择复制）
       verseEl.addEventListener("dblclick", () => {
         const text = `${this.currentBook.name} ${this.currentChapter}:${verse.verse}  ${verse.text}`;
-        void navigator.clipboard.writeText(text).then(() => {
-          new Notice(`已复制 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
-        });
+        void navigator.clipboard.writeText(text)
+          .then(() => {
+            new Notice(`已复制 ${this.currentBook.name} ${this.currentChapter}:${verse.verse}`);
+          })
+          .catch(() => {
+            new Notice("复制失败");
+          });
       });
     }
 
@@ -314,8 +441,14 @@ export class BibleReadingView extends ItemView {
   }
 
   async onClose() {
-    if (this._closeObserver) { this._closeObserver.disconnect(); }
+    if (this._closeObserver) {
+      this._closeObserver.disconnect();
+      this._closeObserver = null;
+    }
+    if (this.keyHandler) {
+      this.contentEl.removeEventListener("keydown", this.keyHandler);
+      this.keyHandler = null;
+    }
+    this.closePicker();
   }
-
-  private _closeObserver: MutationObserver | null = null;
 }

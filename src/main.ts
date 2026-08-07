@@ -10,7 +10,6 @@ import { BibleReadingView, BIBLE_VIEW_TYPE } from "./bible-view";
 import { clearCache, initBibleData } from "./bible-data";
 import { doExpand, createTabExpandExtension } from "./inline-expand";
 import { createRefLinkExtension } from "./ref-link";
-import type { VerseData } from "./types";
 
 export default class BibleStudyPlugin extends Plugin {
   settings: BibleStudySettings;
@@ -22,7 +21,7 @@ export default class BibleStudyPlugin extends Plugin {
     // 初始化圣经数据（解压内置数据）
     await initBibleData();
 
-    this.registerView(BIBLE_VIEW_TYPE, (leaf) => new BibleReadingView(leaf, this.settings));
+    this.registerView(BIBLE_VIEW_TYPE, (leaf) => new BibleReadingView(leaf, this.settings, this));
     this.addRibbonIcon("book-open", "切换圣经阅读面板", () => { void this.toggleView(); });
 
     this.registerEditorExtension(createTabExpandExtension(() => this.settings));
@@ -57,7 +56,7 @@ export default class BibleStudyPlugin extends Plugin {
 
   private updateViews() {
     for (const leaf of this.app.workspace.getLeavesOfType(BIBLE_VIEW_TYPE)) {
-      if (leaf.view instanceof BibleReadingView) void leaf.view.onOpen();
+      if (leaf.view instanceof BibleReadingView) leaf.view.refreshSettings();
     }
   }
 
@@ -85,7 +84,6 @@ export default class BibleStudyPlugin extends Plugin {
     const leaves = this.app.workspace.getLeavesOfType(BIBLE_VIEW_TYPE);
     if (leaves.length > 0 && leaves[0].view instanceof BibleReadingView) {
       await leaves[0].view.navigateTo(ref.bookId, ref.chapter, ref.startVerse);
-      new Notice(`已跳转到 ${ref.bookName} ${ref.chapter}:${ref.startVerse}`);
     }
   }
 

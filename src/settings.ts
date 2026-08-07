@@ -15,7 +15,6 @@ export class BibleStudySettingTab extends PluginSettingTab {
 
   display(): void {
     const { containerEl } = this;
-    const doc = containerEl.ownerDocument;
     containerEl.empty();
 
     new Setting(containerEl).setName("设置").setHeading();
@@ -75,7 +74,23 @@ export class BibleStudySettingTab extends PluginSettingTab {
           .onChange(async (value) => {
             this.plugin.settings.fontSize = value;
             await this.plugin.saveSettings();
-            doc.documentElement.style.setProperty("--bible-font-size", `${value}px`);
+          });
+      });
+
+    new Setting(containerEl)
+      .setName("阅读主题")
+      .setDesc("阅读面板的字体、文字颜色与背景配色")
+      .addDropdown(dropdown => {
+        dropdown
+          .addOption("paper", "经典纸书")
+          .addOption("eyecare", "护眼绿")
+          .addOption("parchment", "羊皮纸")
+          .addOption("night", "夜间暗色")
+          .addOption("minimal", "极简灰")
+          .setValue(this.plugin.settings.readingTheme)
+          .onChange(async (value) => {
+            this.plugin.settings.readingTheme = value as typeof this.plugin.settings.readingTheme;
+            await this.plugin.saveSettings();
           });
       });
 

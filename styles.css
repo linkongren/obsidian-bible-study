@@ -18,14 +18,8 @@
   text-decoration-style: solid;
 }
 
-/* Hide close button on Bible panel */
-.workspace-leaf.bible-study-leaf .view-action[aria-label="Close"],
-.workspace-leaf.bible-study-leaf .view-action[aria-label="关闭"] {
-  display: none !important;
-}
-
 /* ---- Bible Reading Panel ---- */
-.bible-reading-close {
+.bible-panel-close {
   position: absolute;
   top: 6px;
   right: 8px;
@@ -38,7 +32,7 @@
   border-radius: 4px;
 }
 
-.bible-reading-close:hover {
+.bible-panel-close:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
@@ -49,13 +43,22 @@
   height: 100%;
   padding: 8px;
   position: relative;
+  background-color: var(--bible-bg, var(--background-primary));
+  color: var(--bible-text, var(--text-normal));
+}
+
+/* 阅读主题配色由 JS 内联应用到面板/弹层（THEMES），此处只读变量并保留回退 */
+
+.bible-reading-panel .bible-reading-header {
+  background: var(--bible-header-bg, var(--background-secondary));
 }
 
 .bible-reading-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-bottom: 10px;
+  padding: 6px 8px;
+  border-radius: 6px;
   border-bottom: 1px solid var(--background-modifier-border);
   margin-bottom: 10px;
   flex-wrap: wrap;
@@ -65,8 +68,8 @@
   padding: 4px 8px;
   border-radius: 4px;
   border: 1px solid var(--background-modifier-border);
-  background: var(--background-primary);
-  color: var(--text-normal);
+  background: var(--bible-bg, var(--background-primary));
+  color: var(--bible-text, var(--text-normal));
   font-size: 13px;
 }
 
@@ -81,8 +84,8 @@
   padding: 2px 8px;
   border-radius: 4px;
   border: 1px solid var(--background-modifier-border);
-  background: var(--background-secondary);
-  color: var(--text-normal);
+  background: var(--bible-bg, var(--background-secondary));
+  color: var(--bible-text, var(--text-normal));
   cursor: pointer;
   font-size: 13px;
 }
@@ -96,20 +99,153 @@
   font-weight: 600;
   min-width: 50px;
   text-align: center;
-  color: var(--text-normal);
+  color: var(--bible-text, var(--text-normal));
+}
+
+/* 卷/章选择按钮 */
+.bible-book-btn,
+.chapter-btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--bible-bg, var(--background-primary));
+  color: var(--bible-text, var(--text-normal));
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.bible-book-btn {
+  min-width: 140px;
+  flex-shrink: 0;
+}
+
+.bible-book-btn:hover,
+.chapter-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+/* 多列选择器弹层 */
+.bible-picker {
+  position: absolute;
+  z-index: 1000;
+  background: var(--bible-header-bg, var(--background-primary));
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  padding: 8px;
+  max-height: 60vh;
+  overflow-y: auto;
+  min-width: 200px;
+  outline: none;
+}
+
+.bible-picker::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bible-picker::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bible-picker::-webkit-scrollbar-thumb {
+  background: var(--background-modifier-border);
+  border-radius: 4px;
+}
+
+.bible-picker::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.bible-picker-grid {
+  display: grid;
+  gap: 3px;
+}
+
+.bible-picker-grid.books {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.bible-picker-grid.chapters {
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+}
+
+.bible-picker-grid .bible-picker-group {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--bible-accent, var(--text-muted));
+  padding: 6px 2px 2px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  margin-bottom: 2px;
+}
+
+.bible-picker-item {
+  padding: 4px 6px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--bible-text, var(--text-normal));
+  font-size: 13px;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* 长卷名：小号字 + 超出省略 */
+.bible-picker-item-long {
+  font-size: 11px;
+  padding: 3px 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bible-picker-item:hover {
+  background: var(--background-modifier-hover);
+  border-color: var(--background-modifier-border);
 }
 
 .bible-verse-container {
   flex: 1;
   overflow-y: auto;
-  line-height: 1.8;
+  line-height: 1.9;
   font-size: var(--bible-font-size, 14px);
+  font-family: var(--bible-font, var(--font-interface));
+  color: var(--bible-text, var(--text-normal));
+  letter-spacing: 0.02em;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.bible-reading-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: 8px;
+}
+
+.bible-reading-footer .bible-footer-label {
+  font-size: 12px;
+  color: var(--bible-accent, var(--text-muted));
+}
+
+.bible-reading-footer .bible-theme-select {
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--bible-bg, var(--background-primary));
+  color: var(--bible-text, var(--text-normal));
+  font-size: 12px;
 }
 
 .bible-verse {
   padding: 2px 4px;
   border-radius: 3px;
   cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
   transition: background-color 0.15s;
 }
 
@@ -119,14 +255,14 @@
 
 .bible-verse .verse-number {
   font-weight: 700;
-  color: var(--text-accent);
+  color: var(--bible-accent, var(--text-accent));
   margin-right: 6px;
   font-size: 0.85em;
   user-select: none;
 }
 
 .bible-verse .verse-text {
-  color: var(--text-normal);
+  color: var(--bible-text, var(--text-normal));
 }
 
 .bible-verse-highlight {
