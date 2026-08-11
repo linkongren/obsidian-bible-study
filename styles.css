@@ -19,24 +19,6 @@
 }
 
 /* ---- Bible Reading Panel ---- */
-.bible-panel-close {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  background: none;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  font-size: 14px;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.bible-panel-close:hover {
-  background: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
 .bible-reading-panel {
   display: flex;
   flex-direction: column;
@@ -102,9 +84,10 @@
   color: var(--bible-text, var(--text-normal));
 }
 
-/* 卷/章选择按钮 */
-.bible-book-btn,
-.chapter-btn {
+/* 卷/章选择按钮（提高优先级以覆盖 Obsidian 深色主题的 button 样式） */
+.bible-reading-panel .bible-book-btn,
+.bible-reading-panel .chapter-btn,
+.bible-reading-panel .chapter-nav button {
   padding: 4px 10px;
   border-radius: 4px;
   border: 1px solid var(--background-modifier-border);
@@ -115,26 +98,32 @@
   white-space: nowrap;
 }
 
-.bible-book-btn {
+.bible-reading-panel .bible-book-btn {
   min-width: 140px;
   flex-shrink: 0;
 }
 
-.bible-book-btn:hover,
-.chapter-btn:hover {
+.bible-reading-panel .bible-book-btn:hover,
+.bible-reading-panel .chapter-btn:hover,
+.bible-reading-panel .chapter-nav button:hover {
   background: var(--background-modifier-hover);
 }
 
-/* 多列选择器弹层 */
+/* 多列选择器弹层（定位值由 JS 通过 CSS 自定义属性传入） */
 .bible-picker {
-  position: absolute;
+  position: fixed;
+  left: var(--picker-left, 8px);
+  top: var(--picker-top, auto);
+  bottom: var(--picker-bottom, auto);
+  width: var(--picker-width, 300px);
+  max-height: var(--picker-max-height, 60vh);
   z-index: 1000;
   background: var(--bible-header-bg, var(--background-primary));
+  color: var(--bible-text, var(--text-normal));
   border: 1px solid var(--background-modifier-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
   padding: 8px;
-  max-height: 60vh;
   overflow-y: auto;
   min-width: 200px;
   outline: none;
@@ -180,7 +169,7 @@
   margin-bottom: 2px;
 }
 
-.bible-picker-item {
+.bible-picker .bible-picker-item {
   padding: 4px 6px;
   border-radius: 4px;
   border: 1px solid transparent;
@@ -200,8 +189,9 @@
   text-overflow: ellipsis;
 }
 
-.bible-picker-item:hover {
-  background: var(--background-modifier-hover);
+.bible-picker .bible-picker-item:hover {
+  background: var(--bible-accent, var(--background-modifier-hover));
+  color: var(--bible-bg, var(--text-normal));
   border-color: var(--background-modifier-border);
 }
 

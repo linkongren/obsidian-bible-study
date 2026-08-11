@@ -213,3 +213,16 @@ export function getChapterCount(bookId: string): number {
   const book = BOOKS.find(b => b.id === bookId);
   return book ? book.chapters : 0;
 }
+
+/**
+ * 构建普通文本引用匹配用的书名正则片段（全名 + 简称，长名优先）。
+ * 例："创世记|创|出埃及记|出|..."
+ */
+export function buildPlainBookPattern(): string {
+  const names = new Set<string>();
+  for (const book of BOOKS) {
+    names.add(book.name);
+    names.add(book.abbr);
+  }
+  return Array.from(names).sort((a, b) => b.length - a.length).join("|");
+}

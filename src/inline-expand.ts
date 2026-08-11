@@ -2,8 +2,12 @@ import { Editor, Notice } from "obsidian";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { parseReference, parseMultiReference } from "./reference-modal";
+import { buildPlainBookPattern } from "./book-names";
 import { loadBook, getVerses, getVerse } from "./bible-data";
 import type { VerseData, BibleReference, BibleStudySettings } from "./types";
+
+/** 普通文本引用（书名+章节）正则：马太福音 5:6 */
+const PLAIN_REF_RE = new RegExp(`(^|[^\\p{L}\\p{N}*\\-！])(${buildPlainBookPattern()})\\s+([\\d：:\\s,，\\-–—]+)`, "gu");
 
 /** 格式化多段经文的引用标签 */
 function formatMultiLabel(refs: BibleReference[]): string {
@@ -156,8 +160,8 @@ function tryInsertVerse(view: EditorView, settings: BibleStudySettings, refText:
   return true;
 }
 
-/** 范围扩展一节（5:6 -> 5:6-7），并追加下一节经文 */
-function extendBlockByOne(view: EditorView, settings: BibleStudySettings, refs: BibleReference[], from: number, to: number, block: { end: number; indent: string }): boolean {
+/** 范围扩展一节（5:6 -> 5:6-7），并追加下一节经文。wrapped=true 时用 *...* 包裹 */
+function extendBlockByOne(view: EditorView, settings: BibleStudySettings, refs: BibleReference[], from: number, to: number, block: { end: number; indent: string }, wrapped: boolean): boolean {
   const last = refs[refs.length - 1];
   const newEnd = last.endVerse !== undefined ? last.endVerse + 1 : last.startVerse + 1;
 
@@ -169,25 +173,26 @@ function extendBlockByOne(view: EditorView, settings: BibleStudySettings, refs: 
   const extended: BibleReference = { ...last, endVerse: newEnd };
   const newRefs = [...refs.slice(0, -1), extended];
   const newLabel = formatMultiLabel(newRefs);
-  const newBracketEnd = from + newLabel.length + 2;
+  const insertLabel = wrapped ? `*${newLabel}*` : newLabel;
+  const newLabelEnd = from + insertLabel.length;
 
   view.dispatch({
     changes: [
-      { from, to, insert: `*${newLabel}*` },
+      { from, to, insert: insertLabel },
       { from: block.end, insert: `\n${block.indent}> 〔${verse.verse}〕${verse.text}` },
     ],
-    selection: { anchor: newBracketEnd, head: newBracketEnd },
+    selection: { anchor: newLabelEnd, head: newLabelEnd },
   });
   return true;
 }
 
 /** "+"：没有经文块则首次插入；已有块则范围扩展一节并追加下一节 */
-function tryPlus(view: EditorView, settings: BibleStudySettings, refText: string, from: number, to: number, lineNumber: number): boolean {
+function tryPlus(view: EditorView, settings: BibleStudySettings, refText: string, from: number, to: number, lineNumber: number, wrapped: boolean): boolean {
   const refs = parseMultiReference(refText);
   if (refs.length === 0) return false;
 
   const block = findVerseBlock(view, lineNumber);
-  if (block) return extendBlockByOne(view, settings, refs, from, to, block);
+  if (block) return extendBlockByOne(view, settings, refs, from, to, block, wrapped);
   return tryInsertVerse(view, settings, refText, from, to, lineNumber);
 }
 
@@ -195,7 +200,7 @@ function tryPlus(view: EditorView, settings: BibleStudySettings, refText: string
  * "-"：范围退回一节（5:6-8 -> 5:6-7），并删除最后一节经文。
  * 多段引用时，最后一段收缩到单节后再按一次则删除该段。
  */
-function tryMinus(view: EditorView, settings: BibleStudySettings, refText: string, from: number, to: number, lineNumber: number): boolean {
+function tryMinus(view: EditorView, settings: BibleStudySettings, refText: string, from: number, to: number, lineNumber: number, wrapped: boolean): boolean {
   const refs = parseMultiReference(refText);
   if (refs.length === 0) return false;
   const block = findVerseBlock(view, lineNumber);
@@ -225,14 +230,15 @@ function tryMinus(view: EditorView, settings: BibleStudySettings, refText: strin
   const deleteTo = Math.min(lastLine.to + 1, view.state.doc.length);
 
   const newLabel = formatMultiLabel(newRefs);
-  const newBracketEnd = from + newLabel.length + 2;
+  const insertLabel = wrapped ? `*${newLabel}*` : newLabel;
+  const newLabelEnd = from + insertLabel.length;
 
   view.dispatch({
     changes: [
-      { from, to, insert: `*${newLabel}*` },
+      { from, to, insert: insertLabel },
       { from: deleteFrom, to: deleteTo, insert: "" },
     ],
-    selection: { anchor: newBracketEnd, head: newBracketEnd },
+    selection: { anchor: newLabelEnd, head: newLabelEnd },
   });
   return true;
 }
@@ -254,7 +260,7 @@ function makeExpandHandler(getSettings: () => BibleStudySettings, action: "enter
     const posInLine = pos - line.from;
     const fullLine = line.text;
 
-    // 光标在 *引用* 内或后面
+    // 光标在 *引用* 内或后面（兼容旧格式）
     const starRe = /\*([^*]+)\*/g;
     let starMatch;
     while ((starMatch = starRe.exec(fullLine)) !== null) {
@@ -264,20 +270,11 @@ function makeExpandHandler(getSettings: () => BibleStudySettings, action: "enter
         const from = line.from + starMatch.index;
         const to = line.from + end;
         const refText = starMatch[1].trim();
-        if (action === "plus") {
-          tryPlus(view, settings, refText, from, to, line.number);
-          return true; // 吞掉按键，避免输入字面 "+"
-        }
-        if (action === "minus") {
-          tryMinus(view, settings, refText, from, to, line.number);
-          return true; // 吞掉按键，避免输入字面 "-"
-        }
-        if (!findVerseBlock(view, line.number)) return tryInsertVerse(view, settings, refText, from, to, line.number);
-        return false;
+        return handleRefAction(view, settings, action, refText, from, to, line.number, true);
       }
     }
 
-    // 光标在 -ref 内或后面（仅 Enter/Tab 触发转换）
+    // 光标在 -ref 内或后面（仅 Enter/Tab：转换为纯文本引用）
     if (action === "enter") {
       const fullRefRe = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)/g;
       let refM;
@@ -290,7 +287,7 @@ function makeExpandHandler(getSettings: () => BibleStudySettings, action: "enter
             const label = formatMultiLabel(refs);
             const triggerPos = refM[0].indexOf(refM[1]);
             const from = line.from + refM.index + triggerPos;
-            view.dispatch({ changes: { from, to: line.from + refEnd, insert: `*${label}*` } });
+            view.dispatch({ changes: { from, to: line.from + refEnd, insert: label } });
             new Notice(label);
             return true;
           }
@@ -298,8 +295,36 @@ function makeExpandHandler(getSettings: () => BibleStudySettings, action: "enter
       }
     }
 
+    // 普通文本引用（书名+章节，不带 * 或 -）
+    PLAIN_REF_RE.lastIndex = 0;
+    let p;
+    while ((p = PLAIN_REF_RE.exec(fullLine)) !== null) {
+      const rest = p[3].replace(/[\s,，、；;]+$/, "");
+      const refText = p[2] + " " + rest;
+      if (parseMultiReference(refText).length === 0) continue;
+      const refStart = p.index + p[1].length;
+      const refEnd = refStart + p[2].length + 1 + rest.length;
+      if (posInLine >= refStart && posInLine <= refEnd) {
+        const from = line.from + refStart;
+        const to = line.from + refEnd;
+        if (action === "plus" || action === "minus") {
+          handleRefAction(view, settings, action, refText, from, to, line.number, false);
+          return true;
+        }
+        return handleRefAction(view, settings, "enter", refText, from, to, line.number, false);
+      }
+    }
+
     return false;
   };
+}
+
+/** 根据动作处理引用（wrapped=true 表示 *...* 包裹格式） */
+function handleRefAction(view: EditorView, settings: BibleStudySettings, action: "enter" | "plus" | "minus", refText: string, from: number, to: number, lineNumber: number, wrapped: boolean): boolean {
+  if (action === "plus") return tryPlus(view, settings, refText, from, to, lineNumber, wrapped);
+  if (action === "minus") return tryMinus(view, settings, refText, from, to, lineNumber, wrapped);
+  if (!findVerseBlock(view, lineNumber)) return tryInsertVerse(view, settings, refText, from, to, lineNumber);
+  return false;
 }
 
 export function createTabExpandExtension(getSettings: () => BibleStudySettings) {

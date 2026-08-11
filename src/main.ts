@@ -10,6 +10,10 @@ import { BibleReadingView, BIBLE_VIEW_TYPE } from "./bible-view";
 import { clearCache, initBibleData } from "./bible-data";
 import { doExpand, createTabExpandExtension } from "./inline-expand";
 import { createRefLinkExtension } from "./ref-link";
+import { buildPlainBookPattern } from "./book-names";
+
+/** 普通文本引用（书名+章节）正则：马太福音 5:6 */
+const PLAIN_REF_RE = new RegExp(`(^|[^\\p{L}\\p{N}*\\-！])(${buildPlainBookPattern()})\\s+([\\d：:\\s,，\\-–—]+)`, "gu");
 
 export default class BibleStudyPlugin extends Plugin {
   settings: BibleStudySettings;
@@ -116,8 +120,7 @@ export default class BibleStudyPlugin extends Plugin {
       const refText = match[1] + " " + match[2];
       if (parseMultiReference(refText).length === 0) return;
 
-      const link = document.createElement("a");
-      link.className = "bible-ref-link";
+      const link = createEl("a", { cls: "bible-ref-link" });
       link.setAttribute("data-bible-ref", refText);
       link.textContent = text;
       link.addEventListener("click", (e) => { e.preventDefault(); void this.navigateToRef(refText); });
@@ -125,5 +128,49 @@ export default class BibleStudyPlugin extends Plugin {
       const parent = em.parentNode;
       if (parent) parent.replaceChild(link, em);
     });
+
+    // 普通文本引用（书名+章节，不带 * 或 -）
+    this.wrapPlainRefs(el);
+  }
+
+  /** 把正文里的纯文本引用（马太福音 5:6）转为可点击链接 */
+  private wrapPlainRefs(el: HTMLElement) {
+    const treeWalker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    const textNodes: Text[] = [];
+    let n;
+    while ((n = treeWalker.nextNode())) {
+      const t = n as Text;
+      if (!t.textContent || !t.textContent.trim()) continue;
+      const parent = t.parentElement;
+      if (parent && ["A", "CODE", "PRE"].includes(parent.tagName)) continue;
+      textNodes.push(t);
+    }
+    for (const node of textNodes) {
+      const text = node.textContent || "";
+      PLAIN_REF_RE.lastIndex = 0;
+      let match;
+      let last = 0;
+      let changed = false;
+      const frag = createFragment();
+      while ((match = PLAIN_REF_RE.exec(text)) !== null) {
+        const rest = match[3].replace(/[\s,，、；;]+$/, "");
+        const refText = match[2] + " " + rest;
+        if (parseMultiReference(refText).length === 0) continue;
+        const start = match.index + match[1].length;
+        const end = start + match[2].length + 1 + rest.length;
+        if (start > last) frag.appendChild(document.createTextNode(text.slice(last, start)));
+        const a = createEl("a", { cls: "bible-ref-link" });
+        a.setAttribute("data-bible-ref", refText);
+        a.textContent = text.slice(start, end);
+        a.addEventListener("click", (e) => { e.preventDefault(); void this.navigateToRef(refText); });
+        frag.appendChild(a);
+        last = end;
+        changed = true;
+      }
+      if (changed) {
+        if (last < text.length) frag.appendChild(document.createTextNode(text.slice(last)));
+        node.replaceWith(frag);
+      }
+    }
   }
 }

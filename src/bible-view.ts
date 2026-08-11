@@ -27,17 +27,18 @@ const THEME_OPTIONS: Array<[ReadingTheme, string]> = [
   ["minimal", "极简灰"],
 ];
 
-/** 把主题内联应用到面板（CSS 变量），保证在深色 Obsidian 下也生效 */
+/** 把主题内联应用到面板（CSS 自定义属性），保证在深色 Obsidian 下也生效 */
 function applyThemeTo(container: HTMLElement, theme: ReadingTheme, fontSize: number) {
   const t = THEMES[theme] || THEMES.paper;
   container.setAttr("data-theme", theme);
-  container.setAttr("style",
-    `--bible-font-size: ${fontSize}px;` +
-    `--bible-bg: ${t.bg};` +
-    `--bible-text: ${t.text};` +
-    `--bible-accent: ${t.accent};` +
-    `--bible-header-bg: ${t.headerBg};` +
-    `--bible-font: ${t.font};`);
+  container.setCssProps({
+    "--bible-font-size": `${fontSize}px`,
+    "--bible-bg": t.bg,
+    "--bible-text": t.text,
+    "--bible-accent": t.accent,
+    "--bible-header-bg": t.headerBg,
+    "--bible-font": t.font,
+  });
 }
 
 export class BibleReadingView extends ItemView {
@@ -123,7 +124,6 @@ export class BibleReadingView extends ItemView {
   refreshSettings() {
     const container = this.contentEl;
     applyThemeTo(container, this.settings.readingTheme, this.settings.fontSize);
-    this.refreshHeaderTheme(container);
     this.loadCurrentChapter();
     this.renderContent(container);
   }
@@ -133,17 +133,7 @@ export class BibleReadingView extends ItemView {
 
     const header = container.createEl("div", { cls: "bible-reading-header" });
 
-    const closeBtn = header.createEl("button", { text: "✕", cls: "bible-panel-close" });
-    closeBtn.setAttribute("aria-label", "关闭面板");
-    closeBtn.addEventListener("click", () => {
-      this.leaf.detach();
-    });
-
-    const theme = THEMES[this.settings.readingTheme] || THEMES.paper;
-
     const bookBtn = header.createEl("button", { text: this.currentBook.name, cls: "bible-book-btn" });
-    bookBtn.style.background = theme.bg;
-    bookBtn.style.color = theme.text;
     bookBtn.addEventListener("click", () => {
       this.openBookPicker(bookBtn);
     });
@@ -154,8 +144,6 @@ export class BibleReadingView extends ItemView {
     prevBtn.setAttribute("aria-label", "上一章");
 
     const chapterBtn = chapterNav.createEl("button", { text: `第 ${this.currentChapter} 章`, cls: "chapter-btn" });
-    chapterBtn.style.background = theme.bg;
-    chapterBtn.style.color = theme.text;
     chapterBtn.addEventListener("click", () => {
       this.openChapterPicker(chapterBtn);
     });
@@ -198,24 +186,12 @@ export class BibleReadingView extends ItemView {
     themeSelect.addEventListener("change", () => {
       this.settings.readingTheme = themeSelect.value as ReadingTheme;
       applyThemeTo(container, this.settings.readingTheme, this.settings.fontSize);
-      this.refreshHeaderTheme(container);
       void this.plugin.saveData(this.settings);
     });
 
     this.loadCurrentChapter();
     this.renderContent(container);
     this.rendered = true;
-  }
-
-  /** 主题切换时，同步刷新卷/章等持久按钮的内联颜色 */
-  private refreshHeaderTheme(container: HTMLElement) {
-    const t = THEMES[this.settings.readingTheme] || THEMES.paper;
-    const targets = [".bible-book-btn", ".chapter-btn", ".chapter-nav button"];
-    container.querySelectorAll(targets.join(",")).forEach((el) => {
-      const btn = el as HTMLElement;
-      btn.style.background = t.bg;
-      btn.style.color = t.text;
-    });
   }
 
   // ===== 卷/章多列选择器 =====
@@ -277,14 +253,8 @@ export class BibleReadingView extends ItemView {
     const doc = this.contentEl.ownerDocument;
     const picker = doc.body.createEl("div", { cls: "bible-picker" });
     picker.setAttr("data-theme", this.settings.readingTheme);
-    // 直接从 THEMES 取当前主题，内联写死背景/文字色，确保生效
+    // 主题配色通过 CSS 自定义属性应用（见 styles.css 的 .bible-picker）
     const t = THEMES[this.settings.readingTheme] || THEMES.paper;
-    picker.style.background = t.headerBg;
-    picker.style.color = t.text;
-    picker.style.setProperty("--bible-bg", t.bg);
-    picker.style.setProperty("--bible-text", t.text);
-    picker.style.setProperty("--bible-accent", t.accent);
-    picker.style.setProperty("--bible-header-bg", t.headerBg);
     const grid = picker.createEl("div", { cls: `bible-picker-grid ${gridCls}` });
 
     let lastGroup: string | undefined;
@@ -294,46 +264,44 @@ export class BibleReadingView extends ItemView {
         lastGroup = item.group;
       }
       const btn = grid.createEl("button", { text: item.label, cls: "bible-picker-item" });
-      btn.style.background = "transparent";
-      btn.style.color = t.text;
       if (item.label.length >= 5) btn.addClass("bible-picker-item-long");
-      btn.addEventListener("mouseenter", () => {
-        btn.style.background = t.accent;
-        btn.style.color = t.bg;
-      });
-      btn.addEventListener("mouseleave", () => {
-        btn.style.background = "transparent";
-        btn.style.color = t.text;
-      });
       btn.addEventListener("click", () => {
         this.closePicker();
         onPick(item.value);
       });
     }
 
+    // 动态定位通过 CSS 自定义属性应用，避免直接写 style
     const anchorRect = anchor.getBoundingClientRect();
     const width = Math.min(gridCls === "books" ? 310 : 330, window.innerWidth - 16);
-    picker.style.position = "fixed";
-    picker.style.width = `${width}px`;
-    picker.style.left = `${Math.max(8, Math.min(anchorRect.left, window.innerWidth - width - 8))}px`;
+    const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - width - 8));
 
     const spaceBelow = window.innerHeight - anchorRect.bottom;
     const spaceAbove = anchorRect.top;
 
+    const props: Record<string, string> = {
+      "--bible-bg": t.bg,
+      "--bible-text": t.text,
+      "--bible-accent": t.accent,
+      "--bible-header-bg": t.headerBg,
+      "--picker-width": `${width}px`,
+      "--picker-left": `${left}px`,
+      "--picker-top": "auto",
+      "--picker-bottom": "auto",
+    };
+
     if (gridCls === "books") {
-      picker.style.top = `${anchorRect.bottom + 4}px`;
-      picker.style.maxHeight = "90vh";
-      picker.style.overflowY = "auto";
+      props["--picker-top"] = `${anchorRect.bottom + 4}px`;
+      props["--picker-max-height"] = "90vh";
     } else if (spaceBelow >= 200 || spaceBelow >= spaceAbove) {
-      picker.style.top = `${anchorRect.bottom + 4}px`;
-      picker.style.maxHeight = `${Math.max(120, spaceBelow - 8)}px`;
-      picker.style.overflowY = "auto";
+      props["--picker-top"] = `${anchorRect.bottom + 4}px`;
+      props["--picker-max-height"] = `${Math.max(120, spaceBelow - 8)}px`;
     } else {
-      picker.style.bottom = `${window.innerHeight - anchorRect.top + 4}px`;
-      picker.style.maxHeight = `${Math.max(120, spaceAbove - 8)}px`;
-      picker.style.overflowY = "auto";
+      props["--picker-bottom"] = `${window.innerHeight - anchorRect.top + 4}px`;
+      props["--picker-max-height"] = `${Math.max(120, spaceAbove - 8)}px`;
     }
 
+    picker.setCssProps(props);
     this.currentPicker = picker;
 
     const onDocDown = (e: MouseEvent) => {
@@ -434,7 +402,7 @@ export class BibleReadingView extends ItemView {
       if (targetEl) {
         targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
         targetEl.classList.add("bible-verse-highlight");
-        setTimeout(() => targetEl.classList.remove("bible-verse-highlight"), 2000);
+        window.setTimeout(() => targetEl.classList.remove("bible-verse-highlight"), 2000);
       }
       this.targetVerse = undefined;
     }

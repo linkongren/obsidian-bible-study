@@ -13,14 +13,18 @@ function decodeBase64(base64: string): Uint8Array {
 }
 
 function parseCompact(raw: string): void {
-  const compact = JSON.parse(raw) as Record<string, [string, string, Array<[number, string[]]>]>;
-  for (const [bookId, bookData] of Object.entries(compact)) {
-    const bookName = bookData[1];
-    const chArr = bookData[2];
+  const parsed: unknown = JSON.parse(raw);
+  if (typeof parsed !== "object" || parsed === null) return;
+  const compact = parsed as Record<string, [string, string, Array<[number, string[]]>]>;
+  for (const bookId of Object.keys(compact)) {
+    const entry = compact[bookId];
+    const bookName = entry[1];
+    const chArr = entry[2];
     const chapters: ChapterData[] = chArr.map(([chNum, vArr]) => {
       const verses: VerseData[] = [];
       for (let i = 1; i < vArr.length; i++) {
-        if (vArr[i]) verses.push({ verse: i, text: vArr[i] });
+        const v = vArr[i];
+        if (v) verses.push({ verse: i, text: v });
       }
       return { chapter: chNum, verses };
     });

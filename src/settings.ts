@@ -3,6 +3,7 @@
  */
 
 import { App, PluginSettingTab, Setting } from "obsidian";
+import type { SettingDefinitionItem } from "obsidian";
 import type BibleStudyPlugin from "./main";
 
 export class BibleStudySettingTab extends PluginSettingTab {
@@ -11,6 +12,40 @@ export class BibleStudySettingTab extends PluginSettingTab {
   constructor(app: App, plugin: BibleStudyPlugin) {
     super(app, plugin);
     this.plugin = plugin;
+  }
+
+  /** 声明式设置定义：使设置可在 Obsidian 设置搜索中找到（1.13.0+） */
+  getSettingDefinitions(): SettingDefinitionItem[] {
+    return [
+      { type: "group", heading: "经文版本", items: [
+        { name: "默认译本", desc: "选择默认使用的圣经译本（目前仅支持和合本 CUV）", control: { key: "defaultVersion", type: "dropdown", options: { cuv: "和合本 (CUV)" } } },
+      ] },
+      { type: "group", heading: "显示设置", items: [
+        { name: "显示经文编号", desc: "在经文旁显示节数编号", control: { key: "showVerseNumbers", type: "toggle" } },
+        { name: "引用格式", desc: "插入经文时的格式：完整格式（分行，含编号）或简短格式（单行）", control: { key: "verseFormat", type: "dropdown", options: { full: "完整格式", short: "简短格式" } } },
+        { name: "阅读面板字号", desc: "圣经阅读面板中的字体大小", control: { key: "fontSize", type: "slider", min: 12, max: 24, step: 1 } },
+        { name: "阅读主题", desc: "阅读面板的字体、文字颜色与背景配色", control: { key: "readingTheme", type: "dropdown", options: { paper: "经典纸书", eyecare: "护眼绿", parchment: "羊皮纸", night: "夜间暗色", minimal: "极简灰" } } },
+      ] },
+      { type: "group", heading: "内联展开", items: [
+        { name: "启用内联展开", desc: "在编辑器中输入 -ref 后按 Tab 或 Enter 展开经文", control: { key: "inlineExpandEnabled", type: "toggle" } },
+        { name: "展开快捷键", desc: "选择触发内联展开的按键", control: { key: "expandKey", type: "dropdown", options: { tab: "Tab", enter: "Enter", both: "Tab + Enter" } } },
+      ] },
+      { type: "group", heading: "阅读模式", items: [
+        { name: "启用点击跳转", desc: "阅读模式下，点击 *经文引用* 跳转到圣经面板", control: { key: "readingClickEnabled", type: "toggle" } },
+      ] },
+      { type: "group", heading: "数据管理", items: [
+        { name: "重新加载数据", desc: "清除数据缓存并重新从文件加载", action: () => { this.plugin.refreshData(); } },
+      ] },
+    ];
+  }
+
+  getControlValue(key: string): unknown {
+    return (this.plugin.settings as unknown as Record<string, unknown>)[key];
+  }
+
+  setControlValue(key: string, value: unknown): void {
+    (this.plugin.settings as unknown as Record<string, unknown>)[key] = value;
+    void this.plugin.saveSettings();
   }
 
   display(): void {

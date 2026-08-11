@@ -6,40 +6,47 @@
 
 | 功能 | 说明 |
 |------|------|
-| 内联两步展开 | 输入 `-约3:16` 按 Tab → 变为 `*约3:16*`，再按 → 展开经文 |
-| 快速补充下一节 | 在 `*引用*` 上按 `+` 扩展范围并追加，按 `-` 退回一节 |
-| 引用链接 | `-约3:16` 和 `*约翰福音 3:16*` 自动高亮为可点击链接 |
+| 简化输入 | 输入 `-太5 6` 这类简写，按 Enter 自动补全 `马太福音 5:6`，按 `+`/`-` 调整范围 |
+| 经文引用 | 完整经文如 `马太福音 5:6`，再按 Enter 自动插入对应经文，点击可跳转到圣经阅读面板 |
 | 阅读面板 | 右侧栏圣经阅读器，卷/章多列选择器，多套阅读主题 |
-| 阅读主题 | 5 套配色：经典纸书 / 护眼绿 / 羊皮纸 / 夜间暗色 / 极简灰 |
-| 多段引用 | 支持逗号分隔：`-约3:16, 3:17-18, 4:1` |
-| 智能搜索 | 支持中文名、简称、拼音、拼音首字母、英文缩写 |
-| 手机友好 | 支持 `！` 触发、Enter 键、空格分隔 |
+| 手机友好 | 支持 `！`/`-` 识别简化经文，Enter 键、空格分隔补全和展开经文 |
 
 ## 使用方式
 
-### 内联引用
+### 补全和展开经文
 
-输入 `-书卷 章:节`（或 `！书卷 章:节`），光标可以在引用内任意位置，按 Tab/Enter 展开：
+**支持的简化输入格式：**
 
-| 操作 | 效果 |
+```
+-太5 6                      → 马太福音 5:6（以 `-` 开头触发识别）
+！太5 6                     → 马太福音 5:6（手机可以 `!` 触发符）
+-约 5 5 6                   → 约翰福音 5:5-6（空格三段式）
+-yh 3:16                    → 约翰福音 3:16（拼音首字母）
+-约3 16,3 17 18,4 1         → 约翰福音 3:16, 3:17-18, 4:1（多段引用）
+```
+
+**示例：两步展开**
+
+输入 `-太5 6`，光标停在引用内，然后：
+
+| 步骤 | 操作 | 效果 |
+|------|------|------|
+| ① | 按 `Enter`（或 `Tab`） | `-太5 6` → `马太福音 5:6`（去掉 `-`，补全书名，变成标准名） |
+| ② | 再按 `Enter` | 在 `马太福音 5:6` 下方插入第 6 节经文 |
+
+```
+马太福音 5:6
+> 〔6〕虚心的人有福了！因为天国是他们的。
+```
+
+**调整范围**（光标停在引用上时）：
+
+| 按键 | 效果 |
 |------|------|
-| **第一次 Tab / Enter** | `-约3:16` → `*约翰福音 3:16*` |
-| **第二次 Tab / Enter** | 在 `*约翰福音 3:16*` 后追加完整经文 |
-| **`+`（光标在 `*引用*` 上）** | 范围扩展一节：`*约翰福音 3:16*` → `*约翰福音 3:16-17*`，并追加第 17 节 |
-| **`-`（光标在 `*引用*` 上）** | 范围退回一节：`*约翰福音 3:16-18*` → `*约翰福音 3:16-17*`，并删除最后一节 |
-| **点击链接** | 打开面板并跳转到对应章节 |
+| `+` | 追加下一节：`马太福音 5:6` → `马太福音 5:6-7`，并追加第 7 节经文 |
+| `-` | 退回一节：`马太福音 5:6-8` → `马太福音 5:6-7`，并删除第 8 节 |
+| 点击引用 | 打开面板并跳转到对应章节 |
 
-支持的输入格式：
-
-```
--约3:16                  → *约翰福音 3:16*
--约 3:16                 → *约翰福音 3:16*（空格分隔）
--约3:16,3:17-18,4:1      → *约翰福音 3:16, 3:17-18, 4:1*（多段引用）
--约 5 5 6                → *约翰福音 5:5-6*（空格三段式）
--yh 3:16                 → 拼音首字母
--jhn 3:16                → 英文缩写
-！约3:16                 → 手机触发符
-```
 
 ### 阅读面板
 
@@ -49,12 +56,6 @@
 - 支持拖选文本复制（`Ctrl+C`），双击经文复制整节引用
 - ← → 方向键翻章
 - 点击引用链接 → 打开面板并跳转到节
-
-### 设置
-
-- **内联展开开关** — 关闭后 Tab/Enter 不再触发展开
-- **展开快捷键** — 可选 Tab / Enter / Tab+Enter
-- **默认译本** / **显示经文编号** / **引用格式** / **字号** / **阅读主题**
 
 ### 命令
 
@@ -98,32 +99,50 @@ A Bible study plugin for Obsidian. Quickly reference, read, and browse Bible ver
 
 | Feature | Description |
 |---------|-------------|
-| Two-step Inline Expand | Type `-约3:16` + Tab → `*John 3:16*`, Tab again → append full verse |
-| Quick Append Verse | Press `+` on a `*ref*` to extend the range, `-` to shrink back |
-| Reference Links | `-book` and `*ref*` patterns auto-highlighted as clickable links |
-| Reading Panel | Right-sidebar reader with multi-column book/chapter pickers |
-| Reading Themes | 5 themes: Paper / Eye-care / Parchment / Night / Minimal |
-| Multi-reference | Comma-separated: `-约3:16, 3:17-18, 4:1` |
-| Smart Search | Full name, abbreviation, Pinyin, English abbreviation |
-| Mobile Friendly | `！` trigger, Enter key, space separator support |
+| Simplified Input | Type a shorthand like `-太5 6`, press Enter to auto-fill `马太福音 5:6`, adjust the range with `+` / `-` |
+| Verse Quote | Type a full reference like `马太福音 5:6`, press Enter to insert the verse; click to jump to the reading panel |
+| Reading Panel | Right-sidebar reader with multi-column book/chapter pickers and multiple reading themes |
+| Mobile Friendly | `！` / `-` to recognize shorthand references; Enter key and space-separated input for completion and expansion |
 
 ## Usage
 
 ### Inline References
 
-Type `-book chapter:verse` (or `！book chapter:verse`):
+A reference can be written in **3 ways**, all of which are recognized:
 
-| Action | Result |
-|--------|--------|
-| **1st Tab / Enter** | `-约3:16` → `*John 3:16*` |
-| **2nd Tab / Enter** | Appends the full verse text after `*John 3:16*` |
-| **`+`** (cursor on `*ref*`) | Extends range: `*John 3:16*` → `*John 3:16-17*` + appends verse 17 |
-| **`-`** (cursor on `*ref*`) | Shrinks range: `*John 3:16-18*` → `*John 3:16-17*` + removes last verse |
-| **Click link** | Opens panel and navigates to the verse |
+| Form | Notes |
+|------|-------|
+| `-马太福音 5:6` | Starts with `-` to mark a reference to convert |
+| `马太福音 5:6` | Plain text, auto-recognized |
+| `*马太福音 5:6*` | Legacy `*...*` form (kept for compatibility) |
+
+**Example: two-step expansion**
+
+Type `-太5 6`, keep the cursor inside the reference:
+
+| Step | Action | Result |
+|------|--------|--------|
+| 1 | Press `Enter` (or `Tab`) | `-太5 6` → `马太福音 5:6` (removes `-`, fills in the full book name, becomes a plain reference) |
+| 2 | Press `Enter` again | Inserts verse 6 below `马太福音 5:6` |
 
 ```
--jhn 3:16               → *John 3:16*
--jhn 3:16, 3:17-18      → *John 3:16, 3:17-18*
+马太福音 5:6
+> 〔6〕虚心的人有福了！因为天国是他们的。
+```
+
+**Adjusting the range** (cursor on the reference):
+
+| Key | Result |
+|-----|--------|
+| `+` | Appends next verse: `马太福音 5:6` → `马太福音 5:6-7`, inserting verse 7 |
+| `-` | Shrinks back: `马太福音 5:6-8` → `马太福音 5:6-7`, removing verse 8 |
+| Click reference | Opens panel and navigates to the verse |
+
+```
+-马太福音 5:6            → 马太福音 5:6 (removes -)
+-约3:16,3:17-18,4:1      → 约翰福音 3:16, 3:17-18, 4:1 (multi-reference)
+-jhn 3:16                → 约翰福音 3:16 (English abbreviation)
+马太福音 5:6             → plain text reference, auto-recognized
 ```
 
 ### Reading Panel
