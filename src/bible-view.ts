@@ -79,7 +79,7 @@ export class BibleReadingView extends ItemView {
     if (!book) return;
 
     this.currentBook = book;
-    this.currentChapter = Math.min(chapter, book.chapters);
+    this.currentChapter = Math.max(1, Math.min(chapter, book.chapters));
     this.targetVerse = verse;
     this.loadedKey = "";
 
@@ -198,12 +198,13 @@ export class BibleReadingView extends ItemView {
 
   private closePicker() {
     if (this.currentPicker) {
+      const doc = this.currentPicker.ownerDocument;
       this.currentPicker.remove();
       this.currentPicker = null;
-    }
-    if (this.pickerDocHandler) {
-      document.removeEventListener("mousedown", this.pickerDocHandler);
-      this.pickerDocHandler = null;
+      if (this.pickerDocHandler) {
+        doc.removeEventListener("mousedown", this.pickerDocHandler);
+        this.pickerDocHandler = null;
+      }
     }
   }
 
@@ -251,6 +252,7 @@ export class BibleReadingView extends ItemView {
       return;
     }
     const doc = this.contentEl.ownerDocument;
+    const win = doc.defaultView || window;
     const picker = doc.body.createEl("div", { cls: "bible-picker" });
     picker.setAttr("data-theme", this.settings.readingTheme);
     // 主题配色通过 CSS 自定义属性应用（见 styles.css 的 .bible-picker）
@@ -273,10 +275,10 @@ export class BibleReadingView extends ItemView {
 
     // 动态定位通过 CSS 自定义属性应用，避免直接写 style
     const anchorRect = anchor.getBoundingClientRect();
-    const width = Math.min(gridCls === "books" ? 310 : 330, window.innerWidth - 16);
-    const left = Math.max(8, Math.min(anchorRect.left, window.innerWidth - width - 8));
+    const width = Math.min(gridCls === "books" ? 310 : 330, win.innerWidth - 16);
+    const left = Math.max(8, Math.min(anchorRect.left, win.innerWidth - width - 8));
 
-    const spaceBelow = window.innerHeight - anchorRect.bottom;
+    const spaceBelow = win.innerHeight - anchorRect.bottom;
     const spaceAbove = anchorRect.top;
 
     const props: Record<string, string> = {
@@ -297,7 +299,7 @@ export class BibleReadingView extends ItemView {
       props["--picker-top"] = `${anchorRect.bottom + 4}px`;
       props["--picker-max-height"] = `${Math.max(120, spaceBelow - 8)}px`;
     } else {
-      props["--picker-bottom"] = `${window.innerHeight - anchorRect.top + 4}px`;
+      props["--picker-bottom"] = `${win.innerHeight - anchorRect.top + 4}px`;
       props["--picker-max-height"] = `${Math.max(120, spaceAbove - 8)}px`;
     }
 
@@ -311,7 +313,7 @@ export class BibleReadingView extends ItemView {
       }
     };
     this.pickerDocHandler = onDocDown;
-    document.addEventListener("mousedown", onDocDown);
+    doc.addEventListener("mousedown", onDocDown);
     picker.setAttr("tabindex", "-1");
     picker.addEventListener("keydown", (e) => {
       if (e.key === "Escape") this.closePicker();

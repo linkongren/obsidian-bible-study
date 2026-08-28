@@ -86,4 +86,5 @@ export function formatVersePlain(bookName: string, chapter: number, verses: Vers
 export function clearCache(): void {
   dataCache.clear();
   _ready = false;
+  _initPromise = null;
 }

@@ -1,12 +1,10 @@
 ﻿import { EditorView, Decoration, DecorationSet, ViewPlugin, ViewUpdate } from "@codemirror/view";
-import { parseMultiReference } from "./reference-modal";
-import { buildPlainBookPattern } from "./book-names";
+import { createPlainReferenceRegExp, parseMultiReference, plainRefRange } from "./reference-parser";
 
 const LINK_CLASS = "bible-ref-link";
 
-const TRIGGER_LINK_RE = /([-！])([一-鿿a-zA-Z]+)\s*([\d：:\s,，\-–—]+)/g;
 const STAR_LINK_RE = /\*([^*]+)\*/g;
-const PLAIN_LINK_RE = new RegExp(`(^|[^\\p{L}\\p{N}*\\-！])(${buildPlainBookPattern()})\\s+([\\d：:\\s,，\\-–—]+)`, "gu");
+const PLAIN_LINK_RE = createPlainReferenceRegExp();
 
 export function createRefLinkExtension(
   onClickRef: (refText: string) => void
@@ -26,18 +24,7 @@ export function createRefLinkExtension(
         for (const range of view.visibleRanges) {
           const text = view.state.doc.sliceString(range.from, range.to);
 
-          TRIGGER_LINK_RE.lastIndex = 0;
           let match: RegExpExecArray | null;
-          while ((match = TRIGGER_LINK_RE.exec(text)) !== null) {
-            const refText = match[2] + " " + match[3];
-            if (parseMultiReference(refText).length === 0) continue;
-            decorations.push({
-              from: range.from + match.index,
-              to: range.from + match.index + match[0].length,
-              value: Decoration.mark({ class: LINK_CLASS, attributes: { "data-bible-ref": refText, "title": "" } }),
-            });
-          }
-
           STAR_LINK_RE.lastIndex = 0;
           while ((match = STAR_LINK_RE.exec(text)) !== null) {
             const inside = match[1].trim();
@@ -50,18 +37,15 @@ export function createRefLinkExtension(
             }
           }
 
-          // 普通文本引用：马太福音 5:6（不带 * 或 -），借助书名字典避免误匹配
+          // 普通文本引用：马太福音 5:6，借助书名字典避免误匹配
           PLAIN_LINK_RE.lastIndex = 0;
           while ((match = PLAIN_LINK_RE.exec(text)) !== null) {
-            const rest = match[3].replace(/[\s,，、；;]+$/, "");
-            const refText = match[2] + " " + rest;
-            if (parseMultiReference(refText).length === 0) continue;
-            const start = range.from + match.index + match[1].length;
-            const end = start + match[2].length + 1 + rest.length;
+            const r = plainRefRange(match);
+            if (parseMultiReference(r.refText).length === 0) continue;
             decorations.push({
-              from: start,
-              to: end,
-              value: Decoration.mark({ class: LINK_CLASS, attributes: { "data-bible-ref": refText, "title": "" } }),
+              from: range.from + r.start,
+              to: range.from + r.end,
+              value: Decoration.mark({ class: LINK_CLASS, attributes: { "data-bible-ref": r.refText, "title": "" } }),
             });
           }
         }
@@ -73,11 +57,26 @@ export function createRefLinkExtension(
     {
       decorations: (v) => v.decorations,
       eventHandlers: {
-        click: (e: MouseEvent) => {
-          const el = (e.target as HTMLElement).closest("." + LINK_CLASS) as HTMLElement;
-          if (el) {
-            const refText = el.getAttribute("data-bible-ref");
-            if (refText) { e.preventDefault(); e.stopPropagation(); onClickRef(refText); return true; }
+        click: (e: MouseEvent, view: EditorView) => {
+          const t = e.target as HTMLElement | null;
+          let refText: string | null = null;
+          // 1) 直接命中的引用 span
+          const el = t?.closest?.("." + LINK_CLASS) as HTMLElement | null;
+          if (el) refText = el.getAttribute("data-bible-ref");
+          // 2) 兜底：行首/文本节点等边界情况按点击坐标定位
+          if (!refText && t && view.dom.contains(t)) {
+            const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+            if (pos !== null) {
+              const node = view.domAtPos(pos).node as HTMLElement;
+              const refEl = node?.closest?.("." + LINK_CLASS) as HTMLElement | null;
+              refText = refEl?.getAttribute("data-bible-ref") ?? null;
+            }
+          }
+          if (refText) {
+            e.preventDefault();
+            e.stopPropagation();
+            onClickRef(refText);
+            return true;
           }
           return false;
         },

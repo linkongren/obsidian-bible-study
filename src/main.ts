@@ -1,19 +1,19 @@
-/**
+﻿/**
  * Bible Study 插件主入口
  */
 
 import { Plugin, Notice } from "obsidian";
 import { BibleStudySettings, DEFAULT_SETTINGS } from "./types";
 import { BibleStudySettingTab } from "./settings";
-import { ReferenceModal, parseReference, parseMultiReference } from "./reference-modal";
+import { ReferenceModal } from "./reference-modal";
+import { createPlainReferenceRegExp, parseReference, parseMultiReference, plainRefRange } from "./reference-parser";
 import { BibleReadingView, BIBLE_VIEW_TYPE } from "./bible-view";
 import { clearCache, initBibleData } from "./bible-data";
-import { doExpand, createTabExpandExtension } from "./inline-expand";
+import { adjustReferenceRange, doExpand, createTabExpandExtension } from "./inline-expand";
 import { createRefLinkExtension } from "./ref-link";
-import { buildPlainBookPattern } from "./book-names";
 
 /** 普通文本引用（书名+章节）正则：马太福音 5:6 */
-const PLAIN_REF_RE = new RegExp(`(^|[^\\p{L}\\p{N}*\\-！])(${buildPlainBookPattern()})\\s+([\\d：:\\s,，\\-–—]+)`, "gu");
+const PLAIN_REF_RE = createPlainReferenceRegExp();
 
 export default class BibleStudyPlugin extends Plugin {
   settings: BibleStudySettings;
@@ -49,6 +49,18 @@ export default class BibleStudyPlugin extends Plugin {
 
     this.addCommand({ id: "open-bible-reading-panel", name: "切换圣经阅读面板", callback: () => { void this.toggleView(); } });
     this.addCommand({ id: "lookup-selected-reference", name: "查找选中的经文引用", callback: () => { void this.lookupSelectedReference(); } });
+    this.addCommand({
+      id: "extend-bible-reference-range",
+      name: "经文范围增加一节",
+      hotkeys: [{ modifiers: ["Alt"], key: "]" }],
+      editorCallback: (editor) => { adjustReferenceRange(editor, this.settings, "plus"); },
+    });
+    this.addCommand({
+      id: "shrink-bible-reference-range",
+      name: "经文范围减少一节",
+      hotkeys: [{ modifiers: ["Alt"], key: "[" }],
+      editorCallback: (editor) => { adjustReferenceRange(editor, this.settings, "minus"); },
+    });
   }
 
   onunload() {}
@@ -56,7 +68,12 @@ export default class BibleStudyPlugin extends Plugin {
   async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
   async saveSettings() { await this.saveData(this.settings); this.updateViews(); }
 
-  refreshData() { clearCache(); new Notice("缓存已刷新"); }
+  async refreshData() {
+    clearCache();
+    await initBibleData();
+    this.updateViews();
+    new Notice("缓存已刷新");
+  }
 
   private updateViews() {
     for (const leaf of this.app.workspace.getLeavesOfType(BIBLE_VIEW_TYPE)) {
@@ -69,10 +86,12 @@ export default class BibleStudyPlugin extends Plugin {
     let leaf = workspace.getLeavesOfType(BIBLE_VIEW_TYPE)[0];
     if (!leaf) {
       const rightLeaf = workspace.getRightLeaf(false);
-      if (rightLeaf) { await rightLeaf.setViewState({ type: BIBLE_VIEW_TYPE, active: true }); leaf = rightLeaf; }
-    } else {
-      workspace.setActiveLeaf(leaf, { focus: true });
+      if (!rightLeaf) return null;
+      await rightLeaf.setViewState({ type: BIBLE_VIEW_TYPE, active: true });
+      leaf = rightLeaf;
     }
+    await workspace.revealLeaf(leaf);
+    return leaf;
   }
 
   toggleView() {
@@ -84,10 +103,9 @@ export default class BibleStudyPlugin extends Plugin {
   async navigateToRef(refText: string) {
     const ref = parseReference(refText);
     if (!ref) { new Notice(`无法解析: "${refText}"`); return; }
-    await this.activateView();
-    const leaves = this.app.workspace.getLeavesOfType(BIBLE_VIEW_TYPE);
-    if (leaves.length > 0 && leaves[0].view instanceof BibleReadingView) {
-      await leaves[0].view.navigateTo(ref.bookId, ref.chapter, ref.startVerse);
+    const leaf = await this.activateView();
+    if (leaf?.view instanceof BibleReadingView) {
+      await leaf.view.navigateTo(ref.bookId, ref.chapter, ref.startVerse);
     }
   }
 
@@ -141,8 +159,17 @@ export default class BibleStudyPlugin extends Plugin {
     while ((n = treeWalker.nextNode())) {
       const t = n as Text;
       if (!t.textContent || !t.textContent.trim()) continue;
-      const parent = t.parentElement;
-      if (parent && ["A", "CODE", "PRE"].includes(parent.tagName)) continue;
+      // 跳过链接、代码、已被本插件处理过的节点（检查整条祖先链）
+      let parent = t.parentElement;
+      let skip = false;
+      while (parent) {
+        if (parent.classList?.contains("bible-ref-link") || ["A", "CODE", "PRE"].includes(parent.tagName)) {
+          skip = true;
+          break;
+        }
+        parent = parent.parentElement;
+      }
+      if (skip) continue;
       textNodes.push(t);
     }
     for (const node of textNodes) {
@@ -153,18 +180,15 @@ export default class BibleStudyPlugin extends Plugin {
       let changed = false;
       const frag = createFragment();
       while ((match = PLAIN_REF_RE.exec(text)) !== null) {
-        const rest = match[3].replace(/[\s,，、；;]+$/, "");
-        const refText = match[2] + " " + rest;
-        if (parseMultiReference(refText).length === 0) continue;
-        const start = match.index + match[1].length;
-        const end = start + match[2].length + 1 + rest.length;
-        if (start > last) frag.appendChild(document.createTextNode(text.slice(last, start)));
+        const r = plainRefRange(match);
+        if (parseMultiReference(r.refText).length === 0) continue;
+        if (r.start > last) frag.appendChild(document.createTextNode(text.slice(last, r.start)));
         const a = createEl("a", { cls: "bible-ref-link" });
-        a.setAttribute("data-bible-ref", refText);
-        a.textContent = text.slice(start, end);
-        a.addEventListener("click", (e) => { e.preventDefault(); void this.navigateToRef(refText); });
+        a.setAttribute("data-bible-ref", r.refText);
+        a.textContent = text.slice(r.start, r.end);
+        a.addEventListener("click", (e) => { e.preventDefault(); void this.navigateToRef(r.refText); });
         frag.appendChild(a);
-        last = end;
+        last = r.end;
         changed = true;
       }
       if (changed) {

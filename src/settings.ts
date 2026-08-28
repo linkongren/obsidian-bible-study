@@ -27,14 +27,14 @@ export class BibleStudySettingTab extends PluginSettingTab {
         { name: "阅读主题", desc: "阅读面板的字体、文字颜色与背景配色", control: { key: "readingTheme", type: "dropdown", options: { paper: "经典纸书", eyecare: "护眼绿", parchment: "羊皮纸", night: "夜间暗色", minimal: "极简灰" } } },
       ] },
       { type: "group", heading: "内联展开", items: [
-        { name: "启用内联展开", desc: "在编辑器中输入 -ref 后按 Tab 或 Enter 展开经文", control: { key: "inlineExpandEnabled", type: "toggle" } },
+        { name: "启用内联展开", desc: "在编辑器中输入经文引用后按 Tab 或 Enter 展开经文", control: { key: "inlineExpandEnabled", type: "toggle" } },
         { name: "展开快捷键", desc: "选择触发内联展开的按键", control: { key: "expandKey", type: "dropdown", options: { tab: "Tab", enter: "Enter", both: "Tab + Enter" } } },
       ] },
       { type: "group", heading: "阅读模式", items: [
         { name: "启用点击跳转", desc: "阅读模式下，点击 *经文引用* 跳转到圣经面板", control: { key: "readingClickEnabled", type: "toggle" } },
       ] },
       { type: "group", heading: "数据管理", items: [
-        { name: "重新加载数据", desc: "清除数据缓存并重新从文件加载", action: () => { this.plugin.refreshData(); } },
+        { name: "重新加载数据", desc: "清除数据缓存并重新从文件加载", action: () => { void this.plugin.refreshData(); } },
       ] },
     ];
   }
@@ -134,7 +134,7 @@ export class BibleStudySettingTab extends PluginSettingTab {
 
     new Setting(containerEl)
       .setName("启用内联展开")
-      .setDesc("在编辑器中输入 -ref 后按 Tab 或 Enter 两步展开经文")
+      .setDesc("在编辑器中输入经文引用后按 Tab 或 Enter 补全并展开经文")
       .addToggle(toggle => {
         toggle
           .setValue(this.plugin.settings.inlineExpandEnabled)
@@ -193,7 +193,7 @@ export class BibleStudySettingTab extends PluginSettingTab {
         button
           .setButtonText("刷新缓存")
           .onClick(() => {
-            this.plugin.refreshData();
+            void this.plugin.refreshData();
           });
       });
   }

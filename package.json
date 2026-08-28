@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node esbuild.config.mjs",
     "build": "node scripts/bundle-data.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+    "test": "node scripts/run-tests.mjs",
     "fetch-bible": "node scripts/fetch-bible.js"
   },
   "devDependencies": {

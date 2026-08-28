@@ -6,10 +6,10 @@
 
 | 功能 | 说明 |
 |------|------|
-| 简化输入 | 输入 `-太5 6` 这类简写，按 Enter 自动补全 `马太福音 5:6`，按 `+`/`-` 调整范围 |
+| 简化输入 | 输入 `太5 6` 这类简写，按 Enter 自动补全 `马太福音 5:6`，使用范围命令增减经节 |
 | 经文引用 | 完整经文如 `马太福音 5:6`，再按 Enter 自动插入对应经文，点击可跳转到圣经阅读面板 |
 | 阅读面板 | 右侧栏圣经阅读器，卷/章多列选择器，多套阅读主题 |
-| 手机友好 | 支持 `！`/`-` 识别简化经文，Enter 键、空格分隔补全和展开经文 |
+| 手机友好 | 支持 Enter 补全和展开经文，可将范围增减命令添加到移动工具栏 |
 
 ## 使用方式
 
@@ -18,35 +18,35 @@
 **支持的简化输入格式：**
 
 ```
--太5 6                      → 马太福音 5:6（以 `-` 开头触发识别）
-！太5 6                     → 马太福音 5:6（手机可以 `!` 触发符）
--约 5 5 6                   → 约翰福音 5:5-6（空格三段式）
--yh 3:16                    → 约翰福音 3:16（拼音首字母）
--约3 16,3 17 18,4 1         → 约翰福音 3:16, 3:17-18, 4:1（多段引用）
+太5 6                       → 马太福音 5:6
+约 5 5 6                    → 约翰福音 5:5-6（空格三段式）
+yh 3:16                     → 约翰福音 3:16（拼音首字母）
+约3 16,3 17 18,4 1          → 约翰福音 3:16, 3:17-18, 4:1（多段引用）
 ```
 
 **示例：两步展开**
 
-输入 `-太5 6`，光标停在引用内，然后：
+输入 `太5 6`，光标停在引用内，然后：
 
 | 步骤 | 操作 | 效果 |
 |------|------|------|
-| ① | 按 `Enter`（或 `Tab`） | `-太5 6` → `马太福音 5:6`（去掉 `-`，补全书名，变成标准名） |
+| ① | 按 `Enter`（或 `Tab`） | `太5 6` → `马太福音 5:6`（补全书名，变成标准名） |
 | ② | 再按 `Enter` | 在 `马太福音 5:6` 下方插入第 6 节经文 |
 
 ```
 马太福音 5:6
-> 〔6〕虚心的人有福了！因为天国是他们的。
+    虚心的人有福了！因为天国是他们的。
 ```
 
 **调整范围**（光标停在引用上时）：
 
 | 按键 | 效果 |
 |------|------|
-| `+` | 追加下一节：`马太福音 5:6` → `马太福音 5:6-7`，并追加第 7 节经文 |
-| `-` | 退回一节：`马太福音 5:6-8` → `马太福音 5:6-7`，并删除第 8 节 |
+| `Alt+]` | 追加下一节：`马太福音 5:6` → `马太福音 5:6-7`，并追加第 7 节经文 |
+| `Alt+[` | 退回一节：`马太福音 5:6-8` → `马太福音 5:6-7`，并删除第 8 节 |
 | 点击引用 | 打开面板并跳转到对应章节 |
 
+手机端可在 **设置 → 移动端 → 配置移动工具栏** 中添加“经文范围增加一节”和“经文范围减少一节”命令。使用时将光标放在引用内，再点击对应工具栏按钮。
 
 ### 阅读面板
 
@@ -61,8 +61,8 @@
 
 | 命令 | 快捷键 |
 |------|--------|
-| 插入/展开经文引用 | `Ctrl+Shift+B` |
-| 切换圣经阅读面板 | — |
+| 经文范围增加一节 | `Alt+]` |
+| 经文范围减少一节 | `Alt+[` |
 
 ## 安装
 
@@ -99,30 +99,29 @@ A Bible study plugin for Obsidian. Quickly reference, read, and browse Bible ver
 
 | Feature | Description |
 |---------|-------------|
-| Simplified Input | Type a shorthand like `-太5 6`, press Enter to auto-fill `马太福音 5:6`, adjust the range with `+` / `-` |
+| Simplified Input | Type a shorthand like `太5 6`, press Enter to auto-fill `马太福音 5:6`, then use the range commands to add or remove verses |
 | Verse Quote | Type a full reference like `马太福音 5:6`, press Enter to insert the verse; click to jump to the reading panel |
 | Reading Panel | Right-sidebar reader with multi-column book/chapter pickers and multiple reading themes |
-| Mobile Friendly | `！` / `-` to recognize shorthand references; Enter key and space-separated input for completion and expansion |
+| Mobile Friendly | Enter-based completion and expansion, with range commands available from the mobile toolbar |
 
 ## Usage
 
 ### Inline References
 
-A reference can be written in **3 ways**, all of which are recognized:
+A reference can be written in **2 ways**, both of which are recognized:
 
 | Form | Notes |
 |------|-------|
-| `-马太福音 5:6` | Starts with `-` to mark a reference to convert |
 | `马太福音 5:6` | Plain text, auto-recognized |
 | `*马太福音 5:6*` | Legacy `*...*` form (kept for compatibility) |
 
 **Example: two-step expansion**
 
-Type `-太5 6`, keep the cursor inside the reference:
+Type `太5 6`, keep the cursor inside the reference:
 
 | Step | Action | Result |
 |------|--------|--------|
-| 1 | Press `Enter` (or `Tab`) | `-太5 6` → `马太福音 5:6` (removes `-`, fills in the full book name, becomes a plain reference) |
+| 1 | Press `Enter` (or `Tab`) | `太5 6` → `马太福音 5:6` (fills in the full book name and becomes a plain reference) |
 | 2 | Press `Enter` again | Inserts verse 6 below `马太福音 5:6` |
 
 ```
@@ -134,14 +133,16 @@ Type `-太5 6`, keep the cursor inside the reference:
 
 | Key | Result |
 |-----|--------|
-| `+` | Appends next verse: `马太福音 5:6` → `马太福音 5:6-7`, inserting verse 7 |
-| `-` | Shrinks back: `马太福音 5:6-8` → `马太福音 5:6-7`, removing verse 8 |
+| `Alt+]` | Appends next verse: `马太福音 5:6` → `马太福音 5:6-7`, inserting verse 7 |
+| `Alt+[` | Shrinks back: `马太福音 5:6-8` → `马太福音 5:6-7`, removing verse 8 |
 | Click reference | Opens panel and navigates to the verse |
 
+On mobile, open **Settings → Mobile → Configure mobile toolbar**, then add **Extend Bible Reference Range** and **Shrink Bible Reference Range**. Place the cursor inside a reference before tapping either action.
+
 ```
--马太福音 5:6            → 马太福音 5:6 (removes -)
--约3:16,3:17-18,4:1      → 约翰福音 3:16, 3:17-18, 4:1 (multi-reference)
--jhn 3:16                → 约翰福音 3:16 (English abbreviation)
+太5:6                    → 马太福音 5:6
+约3:16,3:17-18,4:1       → 约翰福音 3:16, 3:17-18, 4:1 (multi-reference)
+jhn 3:16                 → 约翰福音 3:16 (English abbreviation)
 马太福音 5:6             → plain text reference, auto-recognized
 ```
 
@@ -163,8 +164,10 @@ Type `-太5 6`, keep the cursor inside the reference:
 
 | Command | Hotkey |
 |---------|--------|
-| Insert / Expand Reference | `Ctrl+Shift+B` |
+| Insert / Expand Reference | — |
 | Toggle Reading Panel | — |
+| Extend Bible Reference Range | `Alt+]` |
+| Shrink Bible Reference Range | `Alt+[` |
 
 ## Installation
 

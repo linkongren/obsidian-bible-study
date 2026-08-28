@@ -215,14 +215,29 @@ export function getChapterCount(bookId: string): number {
 }
 
 /**
- * 构建普通文本引用匹配用的书名正则片段（全名 + 简称，长名优先）。
- * 例："创世记|创|出埃及记|出|..."
+ * 构建普通文本引用匹配用的书名正则片段。
+ * 支持中文全名/简称、拼音/首字母及英文缩写，长名称优先。
  */
 export function buildPlainBookPattern(): string {
   const names = new Set<string>();
   for (const book of BOOKS) {
     names.add(book.name);
     names.add(book.abbr);
+    names.add(book.pinyin);
+    names.add(book.pinyinAbbr);
+    names.add(book.id);
   }
-  return Array.from(names).sort((a, b) => b.length - a.length).join("|");
+  return Array.from(names)
+    .sort((a, b) => b.length - a.length)
+    .map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+}
+
+/** 构建可嵌入中文正文匹配的完整书名片段。 */
+export function buildPlainFullBookPattern(): string {
+  return BOOKS
+    .map(book => book.name)
+    .sort((a, b) => b.length - a.length)
+    .map(name => name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
 }

@@ -2,20 +2,18 @@
 
 /* ---- Inline Reference Links ---- */
 .bible-ref-link {
-  color: var(--text-accent);
+  color: inherit;
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-style: dotted;
-  text-underline-offset: 3px;
-  border-radius: 2px;
+  text-decoration: none;
+  border-radius: 3px;
   padding: 0 2px;
   transition: background-color 0.15s;
 }
 
 .bible-ref-link:hover {
-  background-color: var(--text-accent-hover);
-  color: var(--text-on-accent);
-  text-decoration-style: solid;
+  background-color: var(--background-modifier-hover);
+  color: inherit;
+  text-decoration: none;
 }
 
 /* ---- Bible Reading Panel ---- */
