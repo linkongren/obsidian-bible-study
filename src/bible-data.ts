@@ -14,12 +14,16 @@ function decodeBase64(base64: string): Uint8Array {
 
 function parseCompact(raw: string): void {
   const parsed: unknown = JSON.parse(raw);
-  if (typeof parsed !== "object" || parsed === null) return;
-  const compact = parsed as Record<string, [string, string, Array<[number, string[]]>]>;
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return;
+  const compact = parsed as Record<string, unknown>;
   for (const bookId of Object.keys(compact)) {
     const entry = compact[bookId];
+    if (!Array.isArray(entry) || typeof entry[1] !== "string" || !Array.isArray(entry[2])) continue;
     const bookName = entry[1];
-    const chArr = entry[2];
+    const chArr = entry[2].filter((chapter): chapter is [number, string[]] =>
+      Array.isArray(chapter) && typeof chapter[0] === "number" && Array.isArray(chapter[1]) &&
+      chapter[1].every(verse => verse === null || typeof verse === "string")
+    );
     const chapters: ChapterData[] = chArr.map(([chNum, vArr]) => {
       const verses: VerseData[] = [];
       for (let i = 1; i < vArr.length; i++) {
@@ -40,7 +44,9 @@ export function initBibleData(): Promise<void> {
 
   _initPromise = (async () => {
     const bytes = decodeBase64(BIBLE_DATA_BASE64);
-    const blob = new Blob([bytes.buffer as ArrayBuffer]);
+    const buffer = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(buffer).set(bytes);
+    const blob = new Blob([buffer]);
     const ds = new DecompressionStream("gzip");
     const stream = blob.stream().pipeThrough(ds);
     const json = await new Response(stream).text();

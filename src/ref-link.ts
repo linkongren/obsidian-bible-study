@@ -58,17 +58,19 @@ export function createRefLinkExtension(
       decorations: (v) => v.decorations,
       eventHandlers: {
         click: (e: MouseEvent, view: EditorView) => {
-          const t = e.target as HTMLElement | null;
+          const t = e.target;
           let refText: string | null = null;
           // 1) 直接命中的引用 span
-          const el = t?.closest?.("." + LINK_CLASS) as HTMLElement | null;
+          const el = t instanceof HTMLElement ? t.closest("." + LINK_CLASS) : null;
           if (el) refText = el.getAttribute("data-bible-ref");
           // 2) 兜底：行首/文本节点等边界情况按点击坐标定位
-          if (!refText && t && view.dom.contains(t)) {
+          if (!refText && t instanceof Node && view.dom.contains(t)) {
             const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
             if (pos !== null) {
-              const node = view.domAtPos(pos).node as HTMLElement;
-              const refEl = node?.closest?.("." + LINK_CLASS) as HTMLElement | null;
+              const node = view.domAtPos(pos).node;
+              const refEl = node instanceof HTMLElement
+                ? node.closest("." + LINK_CLASS)
+                : node.parentElement?.closest("." + LINK_CLASS) ?? null;
               refText = refEl?.getAttribute("data-bible-ref") ?? null;
             }
           }

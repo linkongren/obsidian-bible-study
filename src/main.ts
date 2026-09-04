@@ -52,20 +52,36 @@ export default class BibleStudyPlugin extends Plugin {
     this.addCommand({
       id: "extend-bible-reference-range",
       name: "经文范围增加一节",
-      hotkeys: [{ modifiers: ["Alt"], key: "]" }],
       editorCallback: (editor) => { adjustReferenceRange(editor, this.settings, "plus"); },
     });
     this.addCommand({
       id: "shrink-bible-reference-range",
       name: "经文范围减少一节",
-      hotkeys: [{ modifiers: ["Alt"], key: "[" }],
       editorCallback: (editor) => { adjustReferenceRange(editor, this.settings, "minus"); },
     });
   }
 
   onunload() {}
 
-  async loadSettings() { this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData()); }
+  async loadSettings() {
+    const saved: unknown = await this.loadData();
+    if (typeof saved !== "object" || saved === null || Array.isArray(saved)) {
+      this.settings = { ...DEFAULT_SETTINGS };
+      return;
+    }
+    const values = saved as Record<string, unknown>;
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...(typeof values.defaultVersion === "string" ? { defaultVersion: values.defaultVersion } : {}),
+      ...(values.verseFormat === "full" || values.verseFormat === "short" ? { verseFormat: values.verseFormat } : {}),
+      ...(typeof values.showVerseNumbers === "boolean" ? { showVerseNumbers: values.showVerseNumbers } : {}),
+      ...(typeof values.fontSize === "number" && Number.isFinite(values.fontSize) ? { fontSize: values.fontSize } : {}),
+      ...(values.readingTheme === "paper" || values.readingTheme === "eyecare" || values.readingTheme === "night" || values.readingTheme === "parchment" || values.readingTheme === "minimal" ? { readingTheme: values.readingTheme } : {}),
+      ...(typeof values.inlineExpandEnabled === "boolean" ? { inlineExpandEnabled: values.inlineExpandEnabled } : {}),
+      ...(values.expandKey === "tab" || values.expandKey === "enter" || values.expandKey === "both" ? { expandKey: values.expandKey } : {}),
+      ...(typeof values.readingClickEnabled === "boolean" ? { readingClickEnabled: values.readingClickEnabled } : {}),
+    };
+  }
   async saveSettings() { await this.saveData(this.settings); this.updateViews(); }
 
   async refreshData() {
@@ -90,7 +106,7 @@ export default class BibleStudyPlugin extends Plugin {
       await rightLeaf.setViewState({ type: BIBLE_VIEW_TYPE, active: true });
       leaf = rightLeaf;
     }
-    await workspace.revealLeaf(leaf);
+    workspace.setActiveLeaf(leaf, { focus: true });
     return leaf;
   }
 
